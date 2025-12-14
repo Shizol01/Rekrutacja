@@ -1,8 +1,10 @@
 # ⏱️ Rejestracja czasu pracy (QR / Tablet)
 
-Prosta aplikacja do rejestracji czasu pracy pracowników z wykorzystaniem kodów QR oraz generowania raportów czasu pracy.
+Aplikacja do rejestrowania czasu pracy pracowników z wykorzystaniem kodów QR
+oraz generowania raportów czasu pracy.
 
-Projekt został wykonany jako **zadanie rekrutacyjne** i skupia się na poprawnej logice backendowej, architekturze oraz czytelnym API.
+Projekt wykonany jako **zadanie rekrutacyjne** – celem jest pokazanie poprawnej
+architektury backendu, logiki biznesowej oraz czytelnego API.
 
 ---
 
@@ -24,48 +26,88 @@ Projekt został wykonany jako **zadanie rekrutacyjne** i skupia się na poprawne
 
 ## 📋 Funkcjonalności
 
-### Rejestracja czasu pracy (tablet / QR)
+### Rejestracja czasu pracy (QR / Tablet)
 
-* CHECK_IN / CHECK_OUT
-* BREAK_START / BREAK_END
-* rejestracja zdarzeń przez API
-* walidacja logiki zdarzeń
-* wykrywanie anomalii (np. brak CHECK_OUT)
+Obsługiwane zdarzenia:
+
+* CHECK_IN
+* CHECK_OUT
+* BREAK_START
+* BREAK_END
+
+Każde zdarzenie zawiera:
+
+* pracownika
+* typ zdarzenia
+* timestamp (generowany po stronie backendu)
+* identyfikator urządzenia (tablet)
+
+Walidacja logiki:
+
+* brak CHECK_OUT bez wcześniejszego CHECK_IN
+* brak BREAK_END bez BREAK_START
+* brak BREAK_START bez aktywnego CHECK_IN
+* wykrywanie wielokrotnego CHECK_IN (anomalia)
+
+---
 
 ### Grafik pracy (administrator)
 
-* zarządzanie grafikiem przez Django Admin
-* typy dni: WORK / OFF / LEAVE
-* endpoint API do pobierania grafiku z filtrowaniem
+Grafik definiowany w Django Admin:
+
+* pracownik
+* data
+* planowany start i koniec
+* typ dnia:
+
+  * WORK
+  * OFF
+  * LEAVE
+
+Możliwości:
+
+* tworzenie / edycja / usuwanie grafiku
+* API do pobierania grafiku:
+
+  * dla jednego pracownika
+  * dla konkretnej daty
+  * dla zakresu dat
+
+---
 
 ### Raporty czasu pracy
 
-* raport JSON dla wybranego zakresu dat
-* eksport do CSV
-* raport zawiera:
+Raport generowany dla zakresu dat.
 
-  * planowany czas pracy
-  * faktycznie przepracowany czas
-  * czas przerw
-  * spóźnienia
-  * absencje
-  * anomalie
+Raport per pracownik zawiera:
+
+* planowany czas pracy
+* faktycznie przepracowany czas
+* czas przerw
+* spóźnienia
+* absencje
+* listę anomalii
+
+Formaty:
+
+* JSON
+* CSV
 
 ---
 
 ## 📱 Model działania QR / Tablet
 
-* Każdy pracownik posiada **swój indywidualny kod QR** (token)
-* Tablet skanuje QR pracownika
+* Każdy pracownik posiada **własny kod QR**
+* Kod QR zawiera **token pracownika**
+* Tablet skanuje kod QR
 * Tablet wysyła do API:
 
   * token pracownika
   * identyfikator urządzenia
   * typ zdarzenia
-* Backend zapisuje zdarzenie i waliduje logikę
+* Backend zapisuje zdarzenie i wykonuje walidację
 
-> QR code jest nośnikiem tokenu pracownika.
-> Backend nie przetwarza obrazu QR – otrzymuje wyłącznie dane.
+Backend **nie przetwarza obrazu QR** – otrzymuje wyłącznie dane.
 
 ---
 
@@ -73,11 +115,7 @@ Projekt został wykonany jako **zadanie rekrutacyjne** i skupia się na poprawne
 
 ### Rejestracja zdarzeń (tablet)
 
-```
-POST /api/tablet/events/
-```
-
-Przykładowy request:
+POST `/api/tablet/events/`
 
 ```json
 {
@@ -89,42 +127,36 @@ Przykładowy request:
 
 ---
 
-### Grafik pracy (read-only)
+### Grafik pracy
 
-```
-GET /api/admin/schedules/
-```
+GET `/api/admin/schedules/`
 
 Parametry:
 
 * employee_id
 * date
-* from / to
+* from
+* to
 
 ---
 
 ### Raport czasu pracy
 
-```
-GET /api/admin/reports/attendance/?from=YYYY-MM-DD&to=YYYY-MM-DD
-```
+GET `/api/admin/reports/attendance/?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
 CSV:
-
-```
-GET /api/admin/reports/attendance.csv/?from=YYYY-MM-DD&to=YYYY-MM-DD
-```
+GET `/api/admin/reports/attendance.csv/?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
 ---
 
 ## 🧪 Dane testowe
 
-Projekt zawiera skrypt `populate.py`, który generuje:
+Projekt zawiera plik `populate.py`, który generuje:
 
 * pracowników
 * urządzenia (tablety)
 * grafik pracy
-* zdarzenia czasu pracy (w tym anomalie)
+* zdarzenia (w tym anomalie)
 
 Uruchomienie:
 
@@ -134,22 +166,27 @@ python populate.py
 
 ---
 
-## ▶️ Uruchomienie
+## ▶️ Uruchomienie projektu
 
 ### Backend
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
 
-Admin:
+Panel admina:
 
 ```
 http://localhost:8000/admin/
 ```
 
-### Frontend
+---
+
+### Frontend (demo)
 
 ```bash
 cd frontend
@@ -167,9 +204,9 @@ http://localhost:5173
 
 ## 🔐 Uwaga
 
-W wersji demo:
+W wersji demonstracyjnej:
 
-* endpointy raportowe i grafiku są dostępne bez autoryzacji
+* endpointy raportów i grafiku są dostępne bez autoryzacji
 * Django Admin pozostaje zabezpieczony
 
 W środowisku produkcyjnym endpointy API powinny być chronione.
@@ -178,10 +215,11 @@ W środowisku produkcyjnym endpointy API powinny być chronione.
 
 ## ✅ Podsumowanie
 
-Projekt spełnia wszystkie wymagania zadania rekrutacyjnego:
+Projekt spełnia wymagania zadania rekrutacyjnego:
 
-* poprawna rejestracja czasu pracy
-* obsługa QR / tablet
-* logika raportów i anomalii
+* rejestracja czasu pracy przez QR / tablet
+* walidacja logiki zdarzeń
+* obsługa grafiku pracy
+* generowanie raportów
 * czytelna architektura backendu
 * prosty frontend prezentacyjny
