@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from typing import Any, Optional
 
@@ -146,7 +145,7 @@ def build_attendance_report(*, date_from: date, date_to: date, employee_id: int 
                 planned_end = schedule.planned_end
                 planned_minutes = int(
                     (
-                        datetime.combine(d, planned_end) - datetime.combine(d, planned_start)
+                            datetime.combine(d, planned_end) - datetime.combine(d, planned_start)
                     ).total_seconds()
                     // 60
                 )

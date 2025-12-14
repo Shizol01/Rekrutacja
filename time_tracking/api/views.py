@@ -3,7 +3,6 @@ from datetime import date
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -50,7 +49,7 @@ class TabletEventView(APIView):
 
 
 class AttendanceReportView(APIView):
-    permission_classes = [IsAuthenticated]  # admin/HR
+    permission_classes = []
 
     def get(self, request):
         d_from = request.query_params.get("from")
@@ -93,7 +92,7 @@ class AttendanceReportView(APIView):
 
 
 class AttendanceReportCSVView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get(self, request):
         d_from = request.query_params.get("from")
@@ -140,7 +139,7 @@ class AttendanceReportCSVView(APIView):
 
 class WorkScheduleListView(ListAPIView):
     serializer_class = WorkScheduleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get_queryset(self):
         qs = WorkSchedule.objects.select_related("employee").order_by("date")
