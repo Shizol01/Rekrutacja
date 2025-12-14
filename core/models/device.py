@@ -5,7 +5,6 @@ from django.utils.crypto import get_random_string
 class Device(models.Model):
     name = models.CharField(max_length=100)
 
-
     device_id = models.CharField(
         max_length=64,
         unique=True,
@@ -13,7 +12,6 @@ class Device(models.Model):
     )
 
     is_active = models.BooleanField(default=True)
-
 
     api_token = models.CharField(
         max_length=40,

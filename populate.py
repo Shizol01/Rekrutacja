@@ -1,14 +1,14 @@
 import os
-import django
 from datetime import date, time, datetime, timedelta
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "rekrutacja.settings")
-django.setup()
-
+import django
 from django.utils import timezone
 
 from core.models import Employee, Device
 from time_tracking.models import WorkSchedule, TimeEvent
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "rekrutacja.settings")
+django.setup()
 
 
 def run():
