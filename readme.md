@@ -208,18 +208,3 @@ W wersji demonstracyjnej:
 
 * endpointy raportów i grafiku są dostępne bez autoryzacji
 * Django Admin pozostaje zabezpieczony
-
-W środowisku produkcyjnym endpointy API powinny być chronione.
-
----
-
-## ✅ Podsumowanie
-
-Projekt spełnia wymagania zadania rekrutacyjnego:
-
-* rejestracja czasu pracy przez QR / tablet
-* walidacja logiki zdarzeń
-* obsługa grafiku pracy
-* generowanie raportów
-* czytelna architektura backendu
-* prosty frontend prezentacyjny
