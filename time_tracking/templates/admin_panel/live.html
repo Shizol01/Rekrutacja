@@ -1,5 +1,5 @@
 {% load static %}
-
+{% load time_filters %}
 
 <!DOCTYPE html>
 <html lang="pl">
@@ -47,9 +47,9 @@
                 <td>{{ r.in_time|default:"—" }}</td>
                 <td>{{ r.out_time|default:"—" }}</td>
 
-                <td>{{ r.total_minutes }} min</td>
-                <td>{{ r.work_minutes }} min</td>
-                <td>{{ r.break_minutes }} min</td>
+                <td>{{ r.total_minutes|minutes_to_hm }} </td>
+                <td>{{ r.work_minutes|minutes_to_hm }} </td>
+                <td>{{ r.break_minutes|minutes_to_hm }} </td>
 
                 <td class="muted">
                     {{ r.last_action|default:"—" }}
