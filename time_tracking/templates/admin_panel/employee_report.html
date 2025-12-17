@@ -1,4 +1,5 @@
 {% load static %}
+{% load time_filters %}
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -30,9 +31,9 @@
 
     <!-- PODSUMOWANIE -->
     <div class="summary">
-        <div><span>Plan:</span><strong>{{ report.totals.planned_minutes }} min</strong></div>
-        <div><span>Praca:</span><strong>{{ report.totals.worked_minutes }} min</strong></div>
-        <div><span>Spóźnienia (min):</span><strong>{{ report.totals.late_minutes }}</strong></div>
+        <div><span>Plan:</span><strong>{{ report.totals.planned_minutes|minutes_to_hm }} min</strong></div>
+        <div><span>Praca:</span><strong>{{ report.totals.worked_minutes|minutes_to_hm }} min</strong></div>
+        <div><span>Spóźnienia (min):</span><strong>{{ report.totals.late_minutes|minutes_to_hm }}</strong></div>
         <div><span>Absencje:</span><strong>{{ report.totals.absences }}</strong></div>
         <div><span>Urlopy:</span><strong>{{ report.totals.leave_days }}</strong></div>
         <div><span>Dni z anomaliami:</span><strong>{{ report.totals.anomaly_days }}</strong></div>
@@ -44,9 +45,9 @@
         <tr>
             <th>Data</th>
             <th>Typ dnia</th>
-            <th>Plan (min)</th>
-            <th>Praca (min)</th>
-            <th>Przerwy (min)</th>
+            <th>Plan</th>
+            <th>Praca</th>
+            <th>Przerwy</th>
             <th>Spóźnienie</th>
             <th>Absencja</th>
             <th>Anomalie</th>
@@ -57,9 +58,9 @@
         <tr>
             <td>{{ day.date }}</td>
             <td>{{ day.day_type }}</td>
-            <td>{{ day.planned.minutes }}</td>
-            <td>{{ day.actual.worked_minutes }}</td>
-            <td>{{ day.actual.break_minutes }}</td>
+            <td>{{ day.planned.minutes|minutes_to_hm }}</td>
+            <td>{{ day.actual.worked_minutes|minutes_to_hm }}</td>
+            <td>{{ day.actual.break_minutes|minutes_to_hm }}</td>
             <td>
                 {% if day.lateness_minutes > 0 %}
                 ⏰ {{ day.lateness_minutes }} min
