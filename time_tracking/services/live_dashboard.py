@@ -14,7 +14,6 @@ STATUS_LABELS = {
 }
 
 
-
 def _fmt_hm(dt):
     if not dt:
         return None
