@@ -16,10 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+
 from core.views import dashboard_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("time_tracking.api.urls")),
     path("", dashboard_view, name="dashboard"),
+
+    # API
+    path("api/", include("time_tracking.api.urls")),
+
+    # HTML (tablet + admin panel)
+    path("api/", include("time_tracking.web.urls")),
 ]

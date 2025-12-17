@@ -1,10 +1,35 @@
+}
+
 # ⏱️ Rejestracja czasu pracy (QR / Tablet)
 
 Aplikacja do rejestrowania czasu pracy pracowników z wykorzystaniem kodów QR
 oraz generowania raportów czasu pracy.
 
-Projekt wykonany jako **zadanie rekrutacyjne** – celem jest pokazanie poprawnej
-architektury backendu, logiki biznesowej oraz czytelnego API.
+
+* poprawnej architektury backendu,
+* rozdzielenia API i warstwy prezentacji (HTML),
+* logiki biznesowej (walidacje, raporty, anomalie),
+* czytelnego i testowalnego kodu.
+
+---
+
+## 🧠 Architektura projektu
+
+Projekt został podzielony na trzy wyraźne warstwy:
+
+```
+time_tracking/
+├── api/        → REST API (JSON / CSV)
+├── web/        → Widoki HTML (tablet, panel admina)
+├── services/   → Logika biznesowa (jedno źródło prawdy)
+```
+
+* **API** – Django REST Framework, dane w formacie JSON / CSV
+* **Web** – klasyczne widoki Django (render HTML)
+* **Services** – walidacja zdarzeń, liczenie czasu pracy, raporty, anomalie
+
+Taki podział umożliwia łatwe rozszerzenie projektu (np. React / mobile app)
+bez naruszania logiki biznesowej.
 
 ---
 
@@ -17,101 +42,102 @@ architektury backendu, logiki biznesowej oraz czytelnego API.
 * Django REST Framework
 * SQLite
 * Django Admin
-
-### Frontend (demo)
-
-* Vue 3
+* pytest / pytest-django (testy)
 
 ---
 
 ## 📋 Funkcjonalności
 
-### Rejestracja czasu pracy (QR / Tablet)
+### 1️⃣ Rejestracja czasu pracy (QR / Tablet)
 
 Obsługiwane zdarzenia:
 
-* CHECK_IN
-* CHECK_OUT
-* BREAK_START
-* BREAK_END
+* `CHECK_IN` – rozpoczęcie pracy
+* `CHECK_OUT` – zakończenie pracy
+* `BREAK_START` – rozpoczęcie przerwy
+* `BREAK_END` – zakończenie przerwy
 
-Każde zdarzenie zawiera:
+Każde zdarzenie zapisywane jest z:
 
-* pracownika
-* typ zdarzenia
-* timestamp (generowany po stronie backendu)
-* identyfikator urządzenia (tablet)
+* pracownikiem
+* typem zdarzenia
+* timestampem (generowany po stronie serwera)
+* identyfikatorem urządzenia (tablet)
 
 Walidacja logiki:
 
-* brak CHECK_OUT bez wcześniejszego CHECK_IN
-* brak BREAK_END bez BREAK_START
-* brak BREAK_START bez aktywnego CHECK_IN
-* wykrywanie wielokrotnego CHECK_IN (anomalia)
+* brak `CHECK_OUT` bez wcześniejszego `CHECK_IN`
+* brak `BREAK_END` bez `BREAK_START`
+* brak `BREAK_START` bez aktywnego `CHECK_IN`
+* wykrywanie anomalii (np. brak `CHECK_OUT`, wyjście bez wejścia)
+
+Tablet komunikuje się wyłącznie z API – backend **nie przetwarza obrazu QR**,
+otrzymuje jedynie token pracownika.
 
 ---
 
-### Grafik pracy (administrator)
+### 2️⃣ Grafik pracy (administrator)
 
-Grafik definiowany w Django Admin:
+Grafik definiowany w **Django Admin**:
 
 * pracownik
 * data
 * planowany start i koniec
 * typ dnia:
 
-  * WORK
-  * OFF
-  * LEAVE
+  * `WORK`
+  * `OFF`
+  * `LEAVE`
 
-Możliwości:
+Dostępne jest API umożliwiające pobranie grafiku:
 
-* tworzenie / edycja / usuwanie grafiku
-* API do pobierania grafiku:
-
-  * dla jednego pracownika
-  * dla konkretnej daty
-  * dla zakresu dat
+* dla jednego pracownika
+* dla konkretnej daty
+* dla zakresu dat
 
 ---
 
-### Raporty czasu pracy
+### 3️⃣ Raporty czasu pracy
 
-Raport generowany dla zakresu dat.
+Raport generowany dla wybranego **zakresu dat** (np. tydzień / miesiąc).
 
 Raport per pracownik zawiera:
 
-* planowany czas pracy
+* planowany czas pracy (z grafiku)
 * faktycznie przepracowany czas
 * czas przerw
-* spóźnienia
-* absencje
-* listę anomalii
+* spóźnienia (konfigurowalny próg)
+* absencje (dzień `WORK` bez `CHECK_IN`)
+* urlopy
+* listę anomalii:
 
-Formaty:
+  * brak `CHECK_OUT`
+  * przerwa bez zakończenia
+  * wyjście bez wejścia
+  * praca bez grafiku (`NO_SCHEDULE`)
 
-* JSON
-* CSV
+Dostępne formaty:
 
----
-
-## 📱 Model działania QR / Tablet
-
-* Każdy pracownik posiada **własny kod QR**
-* Kod QR zawiera **token pracownika**
-* Tablet skanuje kod QR
-* Tablet wysyła do API:
-
-  * token pracownika
-  * identyfikator urządzenia
-  * typ zdarzenia
-* Backend zapisuje zdarzenie i wykonuje walidację
-
-Backend **nie przetwarza obrazu QR** – otrzymuje wyłącznie dane.
+* **HTML** (panel administracyjny)
+* **JSON**
+* **CSV** (eksport)
 
 ---
 
-## 🔌 Endpointy API
+## 🖥️ Interfejs użytkownika (HTML)
+
+Projekt zawiera prosty interfejs oparty o HTML + CSS:
+
+* **Dashboard** – punkt wejścia do systemu
+* **Tablet** – ekran skanowania QR i rejestracji zdarzeń
+* **Panel live** – podgląd aktualnego statusu pracowników
+* **Raporty** – raporty czasu pracy z możliwością eksportu CSV
+
+Z każdego widoku możliwy jest powrót do dashboardu.
+
+---
+
+## 🔌 Endpointy API (przykłady)
 
 ### Rejestracja zdarzeń (tablet)
 
@@ -119,7 +145,7 @@ POST `/api/tablet/events/`
 
 ```json
 {
-  "employee_qr_token": "UUID_PRACOWNIKA",
+  "employee_qr_token": "TOKEN_PRACOWNIKA",
   "device_id": "tablet-01",
   "event_type": "CHECK_IN"
 }
@@ -127,16 +153,15 @@ POST `/api/tablet/events/`
 
 ---
 
+### Status pracownika (tablet)
+
+GET `/api/tablet/status/?qr=TOKEN&device=tablet-01`
+
+---
+
 ### Grafik pracy
 
-GET `/api/admin/schedules/`
-
-Parametry:
-
-* employee_id
-* date
-* from
-* to
+GET `/api/admin/schedules/?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
 ---
 
@@ -151,12 +176,18 @@ GET `/api/admin/reports/attendance.csv/?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
 ## 🧪 Dane testowe
 
-Projekt zawiera plik `populate.py`, który generuje:
+Projekt zawiera skrypt `populate.py`, który generuje **realistyczne dane demo**:
 
 * pracowników
 * urządzenia (tablety)
-* grafik pracy
-* zdarzenia (w tym anomalie)
+* grafik pracy (WORK / OFF / LEAVE)
+* zdarzenia:
+
+  * poprawne dni pracy
+  * spóźnienia
+  * absencje
+  * anomalie
+  * praca bez grafiku
 
 Uruchomienie:
 
@@ -166,9 +197,23 @@ python populate.py
 
 ---
 
-## ▶️ Uruchomienie projektu
+## 🧪 Testy
 
-### Backend
+Projekt zawiera testy jednostkowe obejmujące:
+
+* walidację sekwencji zdarzeń
+* logikę raportów (absencje, anomalie)
+* API statusu tabletu
+
+Uruchomienie testów:
+
+```bash
+pytest
+```
+
+---
+
+## ▶️ Uruchomienie projektu
 
 ```bash
 python -m venv .venv
@@ -178,33 +223,9 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Panel admina:
+### Dostępne adresy:
 
-```
-http://localhost:8000/admin/
-```
-
----
-
-### Frontend (demo)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend:
-
-```
-http://localhost:5173
-```
-
----
-
-## 🔐 Uwaga
-
-W wersji demonstracyjnej:
-
-* endpointy raportów i grafiku są dostępne bez autoryzacji
-* Django Admin pozostaje zabezpieczony
+* Dashboard: `http://localhost:8000/`
+* Tablet: `http://localhost:8000/api/tablet/`
+* Panel admina (live): `http://localhost:8000/api/admin-panel/live/`
+* Django Admin: `http://localhost:8000/admin/`
