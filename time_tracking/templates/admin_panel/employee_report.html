@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Raport – {{ employee }}</title>
+    <link rel="stylesheet" href="{% static 'admin_panel/report.css' %}">
+</head>
+<body>
+
+<div class="container">
+
+    <a href="/api/admin-panel/live/" class="back">← Powrót do panelu</a>
+
+    <h1>📊 Raport czasu pracy</h1>
+
+    <div class="meta">
+        <strong>Pracownik:</strong> {{ employee }}<br>
+        <strong>Zakres:</strong> {{ date_from }} – {{ date_to }}<br>
+        <strong>Próg spóźnienia:</strong> {{ late_threshold }} min
+    </div>
+
+    <div class="actions">
+        <a class="btn"
+           href="/api/admin/reports/attendance.csv/?employee_id={{ employee.id }}&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">
+            ⬇ Pobierz CSV
+        </a>
+
+    </div>
+
+    <!-- PODSUMOWANIE -->
+    <div class="summary">
+        <div><span>Plan:</span><strong>{{ report.totals.planned_minutes }} min</strong></div>
+        <div><span>Praca:</span><strong>{{ report.totals.worked_minutes }} min</strong></div>
+        <div><span>Spóźnienia (min):</span><strong>{{ report.totals.late_minutes }}</strong></div>
+        <div><span>Absencje:</span><strong>{{ report.totals.absences }}</strong></div>
+        <div><span>Urlopy:</span><strong>{{ report.totals.leave_days }}</strong></div>
+        <div><span>Dni z anomaliami:</span><strong>{{ report.totals.anomaly_days }}</strong></div>
+    </div>
+
+    <!-- TABELA DNI -->
+    <table>
+        <thead>
+        <tr>
+            <th>Data</th>
+            <th>Typ dnia</th>
+            <th>Plan (min)</th>
+            <th>Praca (min)</th>
+            <th>Przerwy (min)</th>
+            <th>Spóźnienie</th>
+            <th>Absencja</th>
+            <th>Anomalie</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for day in report.days %}
+        <tr>
+            <td>{{ day.date }}</td>
+            <td>{{ day.day_type }}</td>
+            <td>{{ day.planned.minutes }}</td>
+            <td>{{ day.actual.worked_minutes }}</td>
+            <td>{{ day.actual.break_minutes }}</td>
+            <td>
+                {% if day.lateness_minutes > 0 %}
+                ⏰ {{ day.lateness_minutes }} min
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>{{ day.absence|yesno:"TAK,NIE" }}</td>
+            <td>
+                {% if day.anomalies %}
+                <ul>
+                    {% for a in day.anomalies %}
+                    <li>{{ a.type }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+</body>
+</html>

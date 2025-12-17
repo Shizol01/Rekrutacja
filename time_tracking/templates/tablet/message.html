@@ -1,0 +1,24 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'tablet/style.css' %}">
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OK</title>
+</head>
+<body>
+    <div class="card">
+        <h2>{{ message }}</h2>
+        <p>Za chwilę wrócisz do ekranu głównego</p>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            location.href = "/api/tablet/";
+        }, 2200);
+    </script>
+</body>
+
+
+</html>

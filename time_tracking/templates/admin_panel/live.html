@@ -1,0 +1,84 @@
+{% load static %}
+
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel aktywnych pracowników</title>
+    <link rel="stylesheet" href="{% static 'admin_panel/live.css' %}">
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 Panel aktywnych pracowników</h1>
+    <p class="subtitle">Stan bieżący – dzisiejszy dzień</p>
+
+    <div class="card">
+        <table>
+            <thead>
+            <tr>
+                <th>Pracownik</th>
+                <th>Status</th>
+                <th>IN</th>
+                <th>OUT</th>
+                <th>Od wejścia</th>
+                <th>Praca</th>
+                <th>Przerwy</th>
+                <th>Ostatnia akcja</th>
+                <th>Anomalie</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+            <tr>
+                <td class="employee">{{ r.employee }}</td>
+
+                <td>
+                        <span class="badge {{ r.status|lower }}">
+                           {{ r.status_label }}
+
+
+                        </span>
+                </td>
+
+                <td>{{ r.in_time|default:"—" }}</td>
+                <td>{{ r.out_time|default:"—" }}</td>
+
+                <td>{{ r.total_minutes }} min</td>
+                <td>{{ r.work_minutes }} min</td>
+                <td>{{ r.break_minutes }} min</td>
+
+                <td class="muted">
+                    {{ r.last_action|default:"—" }}
+                </td>
+
+                <td>
+                    {% if r.anomalies %}
+                    <ul class="anomalies">
+                        {% for a in r.anomalies %}
+                        <li>{{ a }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <a class="link" href="/api/admin-panel/reports/?employee={{ r.employee_id }}">
+    Raport →
+</a>
+
+
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>
