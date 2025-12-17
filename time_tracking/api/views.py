@@ -5,46 +5,54 @@ from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from core.models import Employee
 
-from time_tracking.api.serializers import WorkScheduleSerializer, TabletEventSerializer
+from time_tracking.api.serializers import WorkScheduleSerializer
 from time_tracking.models import WorkSchedule
-from time_tracking.services.event_service import register_event, EventLogicError
+from time_tracking.services.event_service import register_event
 from time_tracking.services.report_csv import build_attendance_csv
 from time_tracking.services.report_service import build_attendance_report
 
 
 class TabletEventView(APIView):
-    permission_classes = []  # tablet bez auth (na MVP)
+    authentication_classes = []
+    permission_classes = []
 
     def post(self, request):
-        serializer = TabletEventSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        qr = request.data.get("qr")
+        event_type = request.data.get("event_type")
+        device_id = request.data.get("device_id")
+
+        if not qr or not event_type or not device_id:
+            return Response(
+                {"message": "Brak danych"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            event = register_event(
-                employee=serializer.validated_data["employee"],
-                device=serializer.validated_data["device"],
-                event_type=serializer.validated_data["event_type"],
-            )
-        except EventLogicError as e:
+            employee = Employee.objects.get(qr_token=qr)
+        except Employee.DoesNotExist:
             return Response(
-                {
-                    "error": str(e),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+                {"message": "Nie znaleziono pracownika"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        event, message = register_event(
+            employee=employee,
+            event_type=event_type,
+            device_id=device_id,
+        )
+
+        # ważne: 200 OK dla komunikatów informacyjnych
+        if not event:
+            return Response(
+                {"message": message},
+                status=status.HTTP_200_OK
             )
 
         return Response(
-            {
-                "id": event.id,
-                "employee": str(event.employee),
-                "event_type": event.event_type,
-                "timestamp": event.timestamp,
-                "device": event.device.device_id,
-                "is_anomaly": event.is_anomaly,
-                "anomaly_reason": event.anomaly_reason,
-            },
-            status=status.HTTP_201_CREATED,
+            {"message": message},
+            status=status.HTTP_201_CREATED
         )
 
 

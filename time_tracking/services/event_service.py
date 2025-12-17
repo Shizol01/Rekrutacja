@@ -1,54 +1,64 @@
 from django.utils import timezone
-from django.db import transaction
-
-from core.models import Employee, Device
 from time_tracking.models import TimeEvent
+from core.models import Device
+from time_tracking.services.tablet_state import get_employee_state
 
 
-class EventLogicError(Exception):
-    """Błąd logiki zdarzeń (do zwrócenia jako 400 w API)."""
-    pass
-
-
-@transaction.atomic
-def register_event(*, employee: Employee, device: Device, event_type: str) -> TimeEvent:
+def register_event(employee, event_type, device_id):
+    state = get_employee_state(employee)
     now = timezone.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    today_events = TimeEvent.objects.filter(
-        employee=employee,
-        timestamp__gte=today_start,
-    ).order_by("timestamp")
+    try:
+        device = Device.objects.get(device_id=device_id)
+    except Device.DoesNotExist:
+        return None, "Nieznane urządzenie"
 
-    last_event = today_events.last()
-
-    is_anomaly = False
-    anomaly_reason = ""
-
-    # --- LOGIKA ---
+    # ===== CHECK IN =====
     if event_type == TimeEvent.CHECK_IN:
-        if last_event and last_event.event_type == TimeEvent.CHECK_IN:
-            is_anomaly = True
-            anomaly_reason = "Multiple CHECK_IN in the same day"
+        if state.state != "OFF_DUTY":
+            return None, "Praca już rozpoczęta"
 
-    elif event_type == TimeEvent.CHECK_OUT:
-        if not last_event or last_event.event_type != TimeEvent.CHECK_IN:
-            raise EventLogicError("CHECK_OUT without CHECK_IN")
+        return TimeEvent.objects.create(
+            employee=employee,
+            event_type=TimeEvent.CHECK_IN,
+            device=device,
+            timestamp=now,
+        ), "Rozpoczęto pracę"
 
-    elif event_type == TimeEvent.BREAK_START:
-        if not last_event or last_event.event_type != TimeEvent.CHECK_IN:
-            raise EventLogicError("BREAK_START without active CHECK_IN")
+    # ===== BREAK START /  =====
+    if event_type == TimeEvent.BREAK_START:
+        if state.state != "WORKING":
+            return None, "Nie można rozpocząć przerwy"
 
-    elif event_type == TimeEvent.BREAK_END:
-        if not last_event or last_event.event_type != TimeEvent.BREAK_START:
-            raise EventLogicError("BREAK_END without BREAK_START")
+        return TimeEvent.objects.create(
+            employee=employee,
+            event_type=TimeEvent.BREAK_START,
+            device=device,
+            timestamp=now,
+        ), "Rozpoczęto przerwę"
 
-    # --- ZAPIS ---
-    return TimeEvent.objects.create(
-        employee=employee,
-        device=device,
-        event_type=event_type,
-        timestamp=now,
-        is_anomaly=is_anomaly,
-        anomaly_reason=anomaly_reason,
-    )
+    # ===== BREAK END =====
+    if event_type == TimeEvent.BREAK_END:
+        if state.state != "ON_BREAK":
+            return None, "Nie ma aktywnej przerwy"
+
+        return TimeEvent.objects.create(
+            employee=employee,
+            event_type=TimeEvent.BREAK_END,
+            device=device,
+            timestamp=now,
+        ), "Zakończono przerwę"
+
+    # ===== CHECK OUT =====
+    if event_type == TimeEvent.CHECK_OUT:
+        if state.state not in ["WORKING", "ON_BREAK"]:
+            return None, "Nie pracujesz"
+
+        return TimeEvent.objects.create(
+            employee=employee,
+            event_type=TimeEvent.CHECK_OUT,
+            device=device,
+            timestamp=now,
+        ), "Zakończono pracę"
+
+    return None, "Nieznany typ zdarzenia"
