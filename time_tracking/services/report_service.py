@@ -125,6 +125,7 @@ def build_attendance_report(*, date_from: date, date_to: date, employee_id: int 
         totals = {
             "planned_minutes": 0,
             "worked_minutes": 0,
+            "break_minutes": 0,
             "late_minutes": 0,
             "absences": 0,
             "leave_days": 0,
@@ -170,6 +171,7 @@ def build_attendance_report(*, date_from: date, date_to: date, employee_id: int 
                 anomalies.extend(break_anoms)
                 worked_minutes = max(0, span_minutes - break_minutes)
                 totals["worked_minutes"] += worked_minutes
+                totals["break_minutes"] += break_minutes
 
             # Spóźnienie
             if schedule and schedule.day_type == WorkSchedule.WORK and check_in and planned_start:

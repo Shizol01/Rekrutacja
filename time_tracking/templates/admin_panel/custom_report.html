@@ -1,4 +1,5 @@
 {% load static %}
+{% load time_filters %}
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -54,10 +55,10 @@
 
     <!-- PODSUMOWANIE -->
     <div class="summary">
-        <div><strong>Plan:</strong> {{ report.totals.planned_minutes }} min</div>
-        <div><strong>Praca:</strong> {{ report.totals.worked_minutes }} min</div>
-        <div><strong>Przerwy:</strong> {{ report.totals.break_minutes }} min</div>
-        <div><strong>Spóźnienia:</strong> {{ report.totals.late_minutes }} min</div>
+        <div><strong>Plan:</strong> {{ report.totals.planned_minutes|minutes_to_hm }}</div>
+        <div><strong>Praca:</strong> {{ report.totals.worked_minutes|minutes_to_hm }} </div>
+        <div><strong>Przerwy:</strong> {{ report.totals.break_minutes|minutes_to_hm }} </div>
+        <div><strong>Spóźnienia:</strong> {{ report.totals.late_minutes|minutes_to_hm }} </div>
         <div><strong>Absencje:</strong> {{ report.totals.absences }}</div>
         <div><strong>Urlopy:</strong> {{ report.totals.leave_days }}</div>
     </div>
@@ -81,12 +82,12 @@
         <tr>
             <td>{{ d.date }}</td>
             <td>{{ d.day_type }}</td>
-            <td>{{ d.planned.minutes }}</td>
-            <td>{{ d.actual.worked_minutes }}</td>
-            <td>{{ d.actual.break_minutes }}</td>
+            <td>{{ d.planned.minutes|minutes_to_hm }}</td>
+            <td>{{ d.actual.worked_minutes|minutes_to_hm }}</td>
+            <td>{{ d.actual.break_minutes|minutes_to_hm }}</td>
             <td>
                 {% if d.lateness_minutes > 0 %}
-                    ⏰ {{ d.lateness_minutes }} min
+                    ⏰ {{ d.lateness_minutes|minutes_to_hm }}
                 {% else %}—{% endif %}
             </td>
             <td>{{ d.absence|yesno:"TAK,NIE" }}</td>
