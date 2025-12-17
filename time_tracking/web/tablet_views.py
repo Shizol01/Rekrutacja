@@ -1,7 +1,6 @@
 from django.shortcuts import render
 
 
-
 def tablet_home(request):
     return render(request, "tablet/index.html")
 

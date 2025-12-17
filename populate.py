@@ -4,11 +4,11 @@ from datetime import date, time, datetime, timedelta
 import django
 from django.utils import timezone
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "rekrutacja.settings")
-django.setup()
-
 from core.models import Employee, Device
 from time_tracking.models import WorkSchedule, TimeEvent
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "rekrutacja.settings")
+django.setup()
 
 
 def aware(d, t):
@@ -70,15 +70,21 @@ def run():
 
     # 2 dni temu – normalny dzień + przerwa
     d = today - timedelta(days=2)
-    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_IN, timestamp=aware(d, time(8, 0)))
-    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.BREAK_START, timestamp=aware(d, time(12, 0)))
-    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.BREAK_END, timestamp=aware(d, time(12, 30)))
-    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_OUT, timestamp=aware(d, time(16, 0)))
+    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_IN,
+                             timestamp=aware(d, time(8, 0)))
+    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.BREAK_START,
+                             timestamp=aware(d, time(12, 0)))
+    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.BREAK_END,
+                             timestamp=aware(d, time(12, 30)))
+    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_OUT,
+                             timestamp=aware(d, time(16, 0)))
 
     # 3 dni temu – spóźnienie
     d = today - timedelta(days=3)
-    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_IN, timestamp=aware(d, time(8, 20)))
-    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_OUT, timestamp=aware(d, time(16, 0)))
+    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_IN,
+                             timestamp=aware(d, time(8, 20)))
+    TimeEvent.objects.create(employee=jan, device=tablet, event_type=TimeEvent.CHECK_OUT,
+                             timestamp=aware(d, time(16, 0)))
 
     # 4 dni temu – brak CHECK_OUT (anomalia)
     d = today - timedelta(days=4)
@@ -97,8 +103,10 @@ def run():
 
     # 1 dzień temu – praca bez grafiku (NO_SCHEDULE)
     d = today - timedelta(days=1)
-    TimeEvent.objects.create(employee=anna, device=tablet, event_type=TimeEvent.CHECK_IN, timestamp=aware(d, time(10, 0)))
-    TimeEvent.objects.create(employee=anna, device=tablet, event_type=TimeEvent.CHECK_OUT, timestamp=aware(d, time(13, 30)))
+    TimeEvent.objects.create(employee=anna, device=tablet, event_type=TimeEvent.CHECK_IN,
+                             timestamp=aware(d, time(10, 0)))
+    TimeEvent.objects.create(employee=anna, device=tablet, event_type=TimeEvent.CHECK_OUT,
+                             timestamp=aware(d, time(13, 30)))
 
     # 3 dni temu – brak CHECK_IN, tylko CHECK_OUT (anomalia)
     d = today - timedelta(days=3)

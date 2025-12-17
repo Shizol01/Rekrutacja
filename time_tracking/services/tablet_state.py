@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+
 from django.utils import timezone
 
 from time_tracking.models import TimeEvent
@@ -7,8 +7,8 @@ from time_tracking.models import TimeEvent
 
 @dataclass(frozen=True)
 class EmployeeState:
-    state: str                  # OFF_DUTY | WORKING | ON_BREAK
-    started_at: str | None      # "HH:MM"
+    state: str  # OFF_DUTY | WORKING | ON_BREAK
+    started_at: str | None  # "HH:MM"
     work_minutes: int | None
     last_event_type: str | None
     last_action: str | None
@@ -19,6 +19,7 @@ def _fmt_hm(dt):
         return None
     local_dt = timezone.localtime(dt)
     return local_dt.strftime("%H:%M")
+
 
 def _get_last_action(event):
     actions = {
@@ -83,4 +84,3 @@ def get_employee_state(employee, day=None):
         last_event_type=last_event.event_type,
         last_action=_get_last_action(last_event),
     )
-
