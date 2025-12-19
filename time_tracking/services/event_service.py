@@ -15,6 +15,13 @@ def register_event(employee, event_type, device_id):
 
     # ===== CHECK IN =====
     if event_type == TimeEvent.CHECK_IN:
+        if TimeEvent.objects.filter(
+            employee=employee,
+            event_type=TimeEvent.CHECK_IN,
+            timestamp__date=now.date(),
+        ).exists():
+            return None, "Praca już rozpoczęta dzisiaj"
+
         if state.state != "OFF_DUTY":
             return None, "Praca już rozpoczęta"
 
