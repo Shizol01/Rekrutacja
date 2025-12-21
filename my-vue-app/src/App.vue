@@ -1,30 +1,37 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import { RouterLink, RouterView } from 'vue-router'
+import { computed } from 'vue'
+
+import { useDeviceSettings } from './composables/useDeviceSettings'
+
+const { deviceToken, deviceId } = useDeviceSettings()
+
+const tokenState = computed(() =>
+  deviceToken.value ? 'Token urządzenia zapisany' : 'Brak zapisanego tokenu'
+)
 </script>
 
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
-</template>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__dot" aria-hidden="true"></span>
+        Tablet Console
+      </div>
+      <nav class="nav">
+        <RouterLink to="/">Start</RouterLink>
+        <RouterLink to="/scan">Skanuj</RouterLink>
+        <RouterLink to="/status">Status</RouterLink>
+        <RouterLink to="/schedule">Harmonogram</RouterLink>
+        <RouterLink to="/reports">Raporty</RouterLink>
+      </nav>
+      <div class="topbar__status" :title="`Device ID: ${deviceId || '—'}`">
+        {{ tokenState }}
+      </div>
+    </header>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
-</style>
+    <main class="content">
+      <RouterView />
+    </main>
+  </div>
+</template>
