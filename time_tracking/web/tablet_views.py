@@ -1,25 +1,13 @@
-from django.shortcuts import render
+from pathlib import Path
+
+from django.conf import settings
+from django.http import FileResponse, HttpResponseNotFound
 
 
-def tablet_home(request):
-    return render(request, "tablet/index.html")
+SPA_ENTRY = Path(settings.BASE_DIR) / "frontend" / "dist" / "index.html"
 
 
-def tablet_scan(request):
-    mode = request.GET.get("mode")  # register | status | action
-    action = request.GET.get("action")  # CHECK_IN, BREAK_START itd.
-    return render(request, "tablet/scan.html", {
-        "mode": mode,
-        "action": action,
-    })
-
-
-def tablet_message(request):
-    message = request.GET.get("message", "")
-    return render(request, "tablet/message.html", {
-        "message": message
-    })
-
-
-def tablet_status(request):
-    return render(request, "tablet/status.html")
+def tablet_spa(_request, *_args, **_kwargs):
+    if not SPA_ENTRY.exists():
+        return HttpResponseNotFound("Tablet SPA bundle not found. Build frontend assets.")
+    return FileResponse(SPA_ENTRY.open("rb"))
