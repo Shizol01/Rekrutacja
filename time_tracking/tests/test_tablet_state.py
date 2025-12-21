@@ -35,13 +35,13 @@ class TestTabletState:
         first_event, first_msg = register_event(
             employee=employee,
             event_type=TimeEvent.CHECK_IN,
-            device_id=device.device_id,
+            device=device,
         )
 
         second_event, second_msg = register_event(
             employee=employee,
             event_type=TimeEvent.CHECK_IN,
-            device_id=device.device_id,
+            device=device,
         )
 
         assert first_event is not None
