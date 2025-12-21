@@ -205,7 +205,7 @@ class TabletStatusView(APIView):
         if st.state == "OFF_DUTY":
             actions = ["CHECK_IN"]
         elif st.state == "WORKING":
-            actions = ["BREAK_START", "CHECK_OUT"]
+            actions = ["BREAK_START", "CHECK_OUT", "TOILET"]
         else:  # ON_BREAK
             actions = ["BREAK_END", "CHECK_OUT"]
 
@@ -222,5 +222,8 @@ class TabletStatusView(APIView):
             "minutes_on_break": st.minutes_on_break,
             "last_event_type": st.last_event_type,
             "last_action": st.last_action,
+            "last_event_timestamp": st.last_event_timestamp,
+            "minutes_since_start": st.minutes_since_start,
+            "last_was_toilet": st.last_was_toilet,
             "actions": actions,
         })
