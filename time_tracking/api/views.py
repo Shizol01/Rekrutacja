@@ -5,8 +5,10 @@ from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
 from core.models import Employee
+from time_tracking.api.authentication import DeviceTokenAuthentication
 from time_tracking.api.serializers import WorkScheduleSerializer
 from time_tracking.models import WorkSchedule
 from time_tracking.services.event_service import register_event
@@ -16,18 +18,25 @@ from time_tracking.services.tablet_state import get_employee_state
 
 
 class TabletEventView(APIView):
-    authentication_classes = []
-    permission_classes = []
+    authentication_classes = [DeviceTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         qr = request.data.get("qr")
         event_type = request.data.get("event_type")
-        device_id = request.data.get("device_id")
 
-        if not qr or not event_type or not device_id:
+        if not qr or not event_type:
             return Response(
                 {"message": "Brak danych"},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        device = request.user
+        device_id = request.data.get("device_id")
+        if device_id and device_id != device.device_id:
+            return Response(
+                {"message": "Nieprawidłowe urządzenie"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
@@ -41,7 +50,7 @@ class TabletEventView(APIView):
         event, message = register_event(
             employee=employee,
             event_type=event_type,
-            device_id=device_id,
+            device=device,
         )
 
         # ważne: 200 OK dla komunikatów informacyjnych
@@ -171,17 +180,19 @@ class WorkScheduleListView(ListAPIView):
 
 
 class TabletStatusView(APIView):
-    authentication_classes = []  # na MVP (potem można dodać token urządzenia)
-    permission_classes = []
+    authentication_classes = [DeviceTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         qr = request.query_params.get("qr")
-        device_id = request.query_params.get("device")
 
         if not qr:
             return Response({"detail": "Missing qr"}, status=status.HTTP_400_BAD_REQUEST)
-        if not device_id:
-            return Response({"detail": "Missing device"}, status=status.HTTP_400_BAD_REQUEST)
+
+        device = request.user
+        device_id = request.query_params.get("device")
+        if device_id and device_id != device.device_id:
+            return Response({"detail": "Invalid device"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             employee = Employee.objects.get(qr_token=qr)

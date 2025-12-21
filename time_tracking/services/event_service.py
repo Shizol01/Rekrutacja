@@ -1,17 +1,17 @@
 from django.utils import timezone
 from time_tracking.models import TimeEvent
-from core.models import Device
 from time_tracking.services.tablet_state import get_employee_state
 
 
-def register_event(employee, event_type, device_id):
+def register_event(employee, event_type, device):
     state = get_employee_state(employee)
     now = timezone.now()
 
-    try:
-        device = Device.objects.get(device_id=device_id)
-    except Device.DoesNotExist:
+    if device is None:
         return None, "Nieznane urządzenie"
+
+    if not device.is_active:
+        return None, "Nieaktywne urządzenie"
 
     # ===== CHECK IN =====
     if event_type == TimeEvent.CHECK_IN:
