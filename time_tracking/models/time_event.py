@@ -9,12 +9,14 @@ class TimeEvent(models.Model):
     CHECK_OUT = "CHECK_OUT"
     BREAK_START = "BREAK_START"
     BREAK_END = "BREAK_END"
+    TOILET = "TOILET"
 
     EVENT_TYPE_CHOICES = [
         (CHECK_IN, "Check in"),
         (CHECK_OUT, "Check out"),
         (BREAK_START, "Break start"),
         (BREAK_END, "Break end"),
+        (TOILET, "Toilet"),
     ]
 
     employee = models.ForeignKey(

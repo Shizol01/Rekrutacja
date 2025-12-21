@@ -15,6 +15,9 @@ class EmployeeState:
     minutes_on_break: int | None
     last_event_type: str | None
     last_action: str | None
+    last_event_timestamp: str | None
+    minutes_since_start: int | None
+    last_was_toilet: bool
 
 
 def _fmt_hm(dt):
@@ -30,6 +33,7 @@ def _get_last_action(event):
         TimeEvent.BREAK_START: "Rozpoczęcie przerwy",
         TimeEvent.BREAK_END: "Zakończenie przerwy",
         TimeEvent.CHECK_OUT: "Zakończenie pracy",
+        TimeEvent.TOILET: "Wyjście do toalety",
     }
     return actions.get(event.event_type, "Brak akcji")
 
@@ -46,7 +50,7 @@ def get_employee_state(employee, day=None):
 
     if not events:
         return EmployeeState(
-            "OFF_DUTY", None, None, None, None, None, None, None
+            "OFF_DUTY", None, None, None, None, None, None, None, None, None, False
         )
 
     last_event = events[-1]
@@ -59,7 +63,7 @@ def get_employee_state(employee, day=None):
 
     if not last_check_in:
         return EmployeeState(
-            "OFF_DUTY", None, None, None, None, None, None, None
+            "OFF_DUTY", None, None, None, None, None, None, None, None, None, False
         )
 
     end_time = timezone.now()
@@ -110,4 +114,7 @@ def get_employee_state(employee, day=None):
         minutes_on_break=minutes_on_break if state == "ON_BREAK" else None,
         last_event_type=last_event.event_type,
         last_action=_get_last_action(last_event),
+        last_event_timestamp=timezone.localtime(last_event.timestamp).isoformat(),
+        minutes_since_start=total_minutes,
+        last_was_toilet=last_event.event_type == TimeEvent.TOILET,
     )

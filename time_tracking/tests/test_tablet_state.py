@@ -82,6 +82,9 @@ class TestTabletState:
         assert state.break_minutes == 0
         assert state.break_started_at is None
         assert state.minutes_on_break is None
+        assert state.minutes_since_start == 480
+        assert state.last_event_type == TimeEvent.CHECK_OUT
+        assert state.last_was_toilet is False
 
     def test_open_break_without_check_out(self, employee, device, monkeypatch):
         check_in = timezone.make_aware(datetime(2025, 1, 3, 9, 0))
@@ -113,3 +116,39 @@ class TestTabletState:
         assert state.break_minutes == 30
         assert state.break_started_at == "10:00"
         assert state.minutes_on_break == 30
+        assert state.minutes_since_start == 90
+        assert state.last_event_type == TimeEvent.BREAK_START
+        assert state.last_was_toilet is False
+
+    def test_last_event_fields_with_toilet(self, employee, device, monkeypatch):
+        check_in = timezone.make_aware(datetime(2025, 1, 4, 9, 0))
+        toilet = timezone.make_aware(datetime(2025, 1, 4, 9, 15))
+        now_after = timezone.make_aware(datetime(2025, 1, 4, 9, 30))
+
+        TimeEvent.objects.create(
+            employee=employee,
+            device=device,
+            event_type=TimeEvent.CHECK_IN,
+            timestamp=check_in,
+        )
+        TimeEvent.objects.create(
+            employee=employee,
+            device=device,
+            event_type=TimeEvent.TOILET,
+            timestamp=toilet,
+        )
+
+        monkeypatch.setattr(
+            "time_tracking.services.tablet_state.timezone.now",
+            lambda: now_after,
+        )
+
+        state = get_employee_state(employee, day=check_in.date())
+
+        assert state.state == "WORKING"
+        assert state.work_minutes == 30
+        assert state.break_minutes == 0
+        assert state.minutes_since_start == 30
+        assert state.last_event_type == TimeEvent.TOILET
+        assert state.last_was_toilet is True
+        assert state.last_event_timestamp == timezone.localtime(toilet).isoformat()
