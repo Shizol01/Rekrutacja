@@ -1,11 +1,15 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from time_tracking.api.views import (
     TabletEventView,
     AttendanceReportView,
     AttendanceReportCSVView,
-    WorkScheduleListView,
     TabletStatusView,
+    WorkScheduleViewSet,
 )
+
+router = DefaultRouter()
+router.register("admin/schedules", WorkScheduleViewSet, basename="work-schedule")
 
 urlpatterns = [
     # TABLET – API
@@ -13,7 +17,7 @@ urlpatterns = [
     path("tablet/status/", TabletStatusView.as_view(), name="tablet-status"),
 
     # ADMIN – API
-    path("admin/schedules/", WorkScheduleListView.as_view(), name="work-schedules"),
+    path("", include(router.urls)),
     path("admin/reports/attendance/", AttendanceReportView.as_view(), name="attendance-report"),
     path("admin/reports/attendance.csv/", AttendanceReportCSVView.as_view(), name="attendance-report-csv"),
 ]
