@@ -10,7 +10,7 @@ class DeviceTokenAuthentication(BaseAuthentication):
     def authenticate(self, request):
         token = request.META.get(self.header)
         if not token:
-            return None
+            raise AuthenticationFailed("Missing device token.")
 
         try:
             device = Device.objects.get(api_token=token)
