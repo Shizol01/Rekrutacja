@@ -32,15 +32,36 @@ class TabletEventSerializer(serializers.Serializer):
 
 
 class WorkScheduleSerializer(serializers.ModelSerializer):
-    employee = serializers.StringRelatedField()
+    employee = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all())
+    employee_name = serializers.CharField(source="employee", read_only=True)
 
     class Meta:
         model = WorkSchedule
         fields = [
             "id",
             "employee",
+            "employee_name",
             "date",
             "day_type",
             "planned_start",
             "planned_end",
         ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = self.instance or WorkSchedule()
+
+        for key, value in attrs.items():
+            setattr(instance, key, value)
+
+        if self.instance:
+            instance.pk = self.instance.pk
+
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        try:
+            instance.full_clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict)
+
+        return attrs

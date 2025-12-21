@@ -1,11 +1,11 @@
 from datetime import date
 
 from django.http import HttpResponse
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from core.models import Employee
 from time_tracking.api.authentication import DeviceTokenAuthentication
@@ -158,6 +158,30 @@ class AttendanceReportCSVView(APIView):
 class WorkScheduleListView(ListAPIView):
     serializer_class = WorkScheduleSerializer
     permission_classes = []
+
+    def get_queryset(self):
+        qs = WorkSchedule.objects.select_related("employee").order_by("date")
+
+        employee_id = self.request.query_params.get("employee_id")
+        date = self.request.query_params.get("date")
+        date_from = self.request.query_params.get("from")
+        date_to = self.request.query_params.get("to")
+
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+
+        if date:
+            qs = qs.filter(date=date)
+
+        if date_from and date_to:
+            qs = qs.filter(date__gte=date_from, date__lte=date_to)
+
+        return qs
+
+
+class WorkScheduleViewSet(viewsets.ModelViewSet):
+    serializer_class = WorkScheduleSerializer
+    permission_classes = [IsAdminUser]
 
     def get_queryset(self):
         qs = WorkSchedule.objects.select_related("employee").order_by("date")
