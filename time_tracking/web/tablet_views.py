@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 
 from django.conf import settings
-from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotFound
+from django.http import Http404, HttpResponse, HttpResponseNotFound
 
 
-SPA_ENTRY = Path(settings.BASE_DIR) / "frontend" / "dist" / "index.html"
+SPA_ENTRY = Path(settings.BASE_DIR) / "frontend" / "my-vue-app" / "dist" / "index.html"
 
 
 def _inject_config(html: str) -> str:
