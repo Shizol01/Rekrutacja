@@ -34,10 +34,12 @@ const minutesSince = (iso) => {
 };
 
 const getConfigValue = (key, fallback) => {
-  const globalConfig = window?.APP_CONFIG || window?.TABLET_CONFIG;
+  const globalConfig = window?.APP_CONFIG || window?.TABLET_CONFIG || window?.ENV || window?.env;
   if (globalConfig && globalConfig[key] !== undefined && globalConfig[key] !== null) {
     return globalConfig[key];
   }
+  const metaValue = document.querySelector(`meta[name="${key}"]`)?.content;
+  if (metaValue) return metaValue;
   return fallback;
 };
 
@@ -50,7 +52,8 @@ const useDeviceSettings = () => {
 
 const buildHeaders = (token, extra = {}) => {
   const headers = { ...extra };
-  if (token) headers['X-Device-Token'] = token;
+  const tokenValue = (token || '').trim();
+  if (tokenValue) headers['X-Device-Token'] = tokenValue;
   return headers;
 };
 
@@ -199,6 +202,9 @@ const ScanView = {
   setup() {
     const { deviceToken, deviceId } = useDeviceSettings();
     const router = useRouter();
+    const route = useRoute();
+    const mode = computed(() => (route.query.mode === 'status' ? 'status' : 'register'));
+    const isRegisterMode = computed(() => mode.value === 'register');
 
     const scanning = ref(true);
     const scannedQr = ref('');
@@ -260,9 +266,10 @@ const ScanView = {
       }
     };
 
-    const fetchStatus = async (qr) => {
+    const fetchStatus = async (qr, { autoRegister = false } = {}) => {
       statusLoading.value = true;
       statusError.value = '';
+      message.value = '';
       try {
         const params = new URLSearchParams({ qr });
         if (deviceId.value) params.set('device', deviceId.value);
@@ -272,6 +279,15 @@ const ScanView = {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || data.message || 'Błąd statusu');
         status.value = data;
+        const canAutoCheckIn = (
+          autoRegister
+          && Array.isArray(data.actions)
+          && data.actions.length === 1
+          && data.actions[0] === 'CHECK_IN'
+        );
+        if (canAutoCheckIn) {
+          await sendEvent('CHECK_IN');
+        }
       } catch (err) {
         status.value = null;
         statusError.value = err.message;
@@ -310,15 +326,25 @@ const ScanView = {
     const onScan = (decodedText) => {
       scannedQr.value = decodedText;
       manualQr.value = decodedText;
+      status.value = null;
+      statusError.value = '';
+      message.value = '';
       stopScanner();
-      fetchStatus(decodedText);
+      stopCountdown();
+      const autoRegister = isRegisterMode.value;
+      fetchStatus(decodedText, { autoRegister });
     };
 
     const submitManual = () => {
       if (!manualQr.value) return;
       scannedQr.value = manualQr.value;
+      status.value = null;
+      statusError.value = '';
+      message.value = '';
       stopScanner();
-      fetchStatus(manualQr.value);
+      stopCountdown();
+      const autoRegister = isRegisterMode.value;
+      fetchStatus(manualQr.value, { autoRegister });
     };
 
     onMounted(() => startScanner());
@@ -339,6 +365,8 @@ const ScanView = {
       scannerError,
       deviceId,
       deviceToken,
+      mode,
+      isRegisterMode,
       startScanner,
       submitManual,
       sendEvent,
@@ -350,6 +378,9 @@ const ScanView = {
       <div class="grid two">
         <div class="card">
           <h2>Skanuj kod QR</h2>
+          <div class="badge info" style="margin-bottom:12px">
+            Tryb: {{ isRegisterMode ? 'Rejestracja' : 'Status' }}
+          </div>
           <div id="reader" class="scanner">
             <div class="hint" v-if="scannerError">{{ scannerError }}</div>
             <div class="hint" v-else>Oczekiwanie na kamerę…</div>
@@ -368,8 +399,13 @@ const ScanView = {
             <p v-if="statusError" class="alert">{{ statusError }}</p>
             <p v-if="statusLoading">Ładowanie statusu…</p>
             <div v-if="status">
-              <StatusDetails :status="status" />
-              <div class="action-grid" style="margin-top:16px">
+              <StatusDetails :status="status" v-if="mode === 'status' || status.actions.length > 1" />
+              <p class="helper" v-if="isRegisterMode && status.actions.length === 1">Wykonano domyślną akcję CHECK_IN.</p>
+              <div
+                class="action-grid"
+                style="margin-top:16px"
+                v-if="mode === 'status' || status.actions.length > 1"
+              >
                 <button
                   v-for="action in status.actions"
                   :key="action"
@@ -381,10 +417,11 @@ const ScanView = {
                   {{ actionMeta[action]?.label || action }}
                 </button>
               </div>
-              <p v-if="message" class="helper" style="margin-top:12px">
-                {{ message }}
-                <span v-if="countdown !== null" class="timer">(powrót za {{ countdown }}s)</span>
-              </p>
+              <div v-if="message" class="card" style="margin-top:12px; background:#f8fafc;">
+                <h4>Potwierdzenie</h4>
+                <p style="margin:0">{{ message }}</p>
+                <p class="helper" v-if="countdown !== null" style="margin-top:6px">Powrót na ekran główny za {{ countdown }}s…</p>
+              </div>
             </div>
           </div>
         </div>
