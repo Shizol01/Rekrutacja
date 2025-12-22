@@ -18,6 +18,20 @@ const actionMeta = {
   CHECK_OUT: { label: '⏹️ Zakończ pracę', tone: 'danger' },
 };
 
+const actionBadges = {
+  CHECK_IN: 'Wejście',
+  BREAK_START: 'Przerwa',
+  BREAK_END: 'Koniec przerwy',
+  TOILET: 'Toaleta',
+  CHECK_OUT: 'Wyjście',
+};
+
+const stateMeta = {
+  WORKING: { label: 'Jesteś w pracy', tone: 'success' },
+  ON_BREAK: { label: 'Przerwa', tone: 'warning' },
+  OFF_DUTY: { label: 'Poza pracą', tone: 'danger' },
+};
+
 const formatMinutes = (minutes) => {
   if (minutes === null || minutes === undefined) return '—';
   const hrs = Math.floor(minutes / 60);
@@ -26,11 +40,11 @@ const formatMinutes = (minutes) => {
   return `${hrs} h ${mins} min`;
 };
 
-const minutesSince = (iso) => {
-  if (!iso) return null;
-  const diffMs = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(diffMs)) return null;
-  return Math.max(0, Math.floor(diffMs / 60000));
+const formatClock = (iso) => {
+  if (!iso) return '—';
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '—';
+  return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 const getConfigValue = (key, fallback) => {
@@ -69,6 +83,50 @@ const loadQrLibrary = () => new Promise((resolve, reject) => {
   document.head.appendChild(script);
 });
 
+const createAutoClose = () => {
+  const countdown = ref(null);
+  let countdownEndsAt = null;
+  let countdownTimer = null;
+  let onFinish = null;
+
+  const stop = () => {
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = null;
+    countdownEndsAt = null;
+    onFinish = null;
+    countdown.value = null;
+  };
+
+  const finish = () => {
+    const cb = onFinish;
+    stop();
+    if (cb) cb();
+  };
+
+  const start = (seconds, cb) => {
+    stop();
+    countdownEndsAt = Date.now() + seconds * 1000;
+    onFinish = cb;
+    countdown.value = seconds;
+    countdownTimer = setInterval(() => {
+      if (!countdownEndsAt) return;
+      const remaining = Math.max(0, Math.ceil((countdownEndsAt - Date.now()) / 1000));
+      countdown.value = remaining;
+      if (remaining <= 0) {
+        finish();
+      }
+    }, 500);
+  };
+
+  const extend = (extraSeconds = 60) => {
+    if (!countdownEndsAt) return;
+    countdownEndsAt += extraSeconds * 1000;
+    countdown.value = Math.max(0, Math.ceil((countdownEndsAt - Date.now()) / 1000));
+  };
+
+  return { countdown, start, stop, extend, finish };
+};
+
 const StatusDetails = {
   name: 'StatusDetails',
   props: {
@@ -76,31 +134,107 @@ const StatusDetails = {
   },
   setup(props) {
     const workTime = computed(() => formatMinutes(props.status.work_minutes));
-    const breakTime = computed(() => {
-      if (props.status.minutes_on_break !== null && props.status.minutes_on_break !== undefined) {
-        return `${formatMinutes(props.status.break_minutes)} (w trakcie: ${props.status.minutes_on_break} min)`;
-      }
-      return formatMinutes(props.status.break_minutes);
-    });
-    const toiletInfo = computed(() => {
-      if (props.status.last_event_type !== 'TOILET') return 'Brak';
-      const mins = minutesSince(props.status.last_event_timestamp);
-      if (mins === null) return 'Brak danych';
-      return `${mins} min temu`;
-    });
+    const breakTime = computed(() => formatMinutes(props.status.break_minutes));
+    const eventClock = computed(() => formatClock(props.status.last_event_timestamp));
+    const email = computed(() => props.status.employee.email || props.status.employee.mail || '—');
+    const available = computed(() => (props.status.actions || []).map((a) => actionBadges[a] || a));
+    const state = computed(() => stateMeta[props.status.state] || { label: props.status.state, tone: 'info' });
 
-    return { workTime, breakTime, toiletInfo };
+    return { workTime, breakTime, eventClock, email, available, state };
   },
   template: `
-    <div class="meta">
-      <div><strong>Pracownik:</strong> {{ status.employee.name }}</div>
-      <div><strong>Status:</strong> {{ status.state }}</div>
-      <div><strong>Start dnia:</strong> {{ status.started_at || '—' }}</div>
-      <div><strong>Czas pracy:</strong> {{ workTime }}</div>
-      <div><strong>Przerwy:</strong> {{ breakTime }}</div>
-      <div><strong>Ostatnia akcja:</strong> {{ status.last_action || '—' }}</div>
-      <div><strong>Ostatnie zdarzenie:</strong> {{ status.last_event_timestamp ? new Date(status.last_event_timestamp).toLocaleTimeString() : '—' }}</div>
-      <div><strong>Toaleta:</strong> {{ toiletInfo }}</div>
+    <div class="status-details">
+      <div class="status-header">
+        <div>
+          <p class="eyebrow">Pracownik</p>
+          <h3 style="margin: 4px 0">{{ status.employee.name }}</h3>
+          <p class="muted">{{ email }}</p>
+        </div>
+        <span class="badge" :class="state.tone">{{ state.label }}</span>
+      </div>
+
+      <div class="quick-grid">
+        <div class="quick-card">
+          <p class="helper">Czas pracy</p>
+          <div class="stat-value">{{ workTime }}</div>
+        </div>
+        <div class="quick-card">
+          <p class="helper">Przerwy</p>
+          <div class="stat-value">{{ breakTime }}</div>
+          <p class="helper" v-if="status.minutes_on_break !== null">W trakcie: {{ status.minutes_on_break }} min</p>
+        </div>
+        <div class="quick-card">
+          <p class="helper">Przyjście</p>
+          <div class="stat-value">{{ status.started_at || '—' }}</div>
+        </div>
+        <div class="quick-card">
+          <p class="helper">Ostatnie zdarzenie</p>
+          <div class="stat-value">{{ eventClock }}</div>
+          <p class="helper">{{ status.last_action || '—' }}</p>
+        </div>
+      </div>
+
+      <div class="meta-row">
+        <div>
+          <p class="helper" style="margin-bottom:6px">Dostępne akcje</p>
+          <div class="pill-row">
+            <span class="pill" v-for="action in available" :key="action">{{ action }}</span>
+          </div>
+        </div>
+        <div v-if="status.minutes_on_break !== null" class="pill warning">Czas przerwy: {{ status.minutes_on_break }} min</div>
+      </div>
+    </div>
+  `,
+};
+
+const ConfirmationCard = {
+  name: 'ConfirmationCard',
+  props: {
+    status: { type: Object, required: true },
+    countdown: { type: Number, default: null },
+    message: { type: String, default: '' },
+  },
+  emits: ['close', 'extend'],
+  setup(props) {
+    const shortcutItems = computed(() => [
+      { label: 'Czas pracy', value: formatMinutes(props.status.work_minutes) },
+      { label: 'Przerwy', value: formatMinutes(props.status.break_minutes) },
+      { label: 'Przyjście', value: props.status.started_at || '—' },
+      { label: 'Ostatnie zdarzenie', value: formatClock(props.status.last_event_timestamp) },
+    ]);
+    const title = computed(() => props.message || props.status.last_action || 'Ostatnie zdarzenie');
+    const breakInfo = computed(() => (
+      props.status.minutes_on_break !== null && props.status.minutes_on_break !== undefined
+        ? `${props.status.minutes_on_break} min`
+        : null
+    ));
+
+    return { shortcutItems, title, breakInfo, formatClock };
+  },
+  template: `
+    <div class="card confirmation-card">
+      <div class="confirmation-head">
+        <div>
+          <p class="eyebrow">Potwierdzenie</p>
+          <h4 style="margin: 4px 0">{{ title }}</h4>
+          <p class="muted">O {{ formatClock(status.last_event_timestamp) }}</p>
+        </div>
+        <div v-if="breakInfo" class="pill warning">Przerwa trwa: {{ breakInfo }}</div>
+      </div>
+
+      <div class="shortcut-grid">
+        <div class="shortcut" v-for="item in shortcutItems" :key="item.label">
+          <p class="helper">{{ item.label }}</p>
+          <div class="stat-value">{{ item.value }}</div>
+        </div>
+      </div>
+
+      <div class="confirmation-actions">
+        <button class="btn primary" type="button" @click="$emit('close')">
+          Zamknij<span v-if="countdown !== null"> ({{ countdown }}s)</span>
+        </button>
+        <button class="btn ghost" type="button" :disabled="countdown === null" @click="$emit('extend')">+60s</button>
+      </div>
     </div>
   `,
 };
@@ -135,7 +269,7 @@ const HomeView = {
 
 const StatusView = {
   name: 'StatusView',
-  components: { StatusDetails },
+  components: { StatusDetails, ConfirmationCard },
   setup() {
     const { deviceToken, deviceId } = useDeviceSettings();
     const route = useRoute();
@@ -143,6 +277,8 @@ const StatusView = {
     const status = ref(null);
     const loading = ref(false);
     const error = ref('');
+    const showConfirmation = ref(false);
+    const { countdown, start, stop, extend, finish } = createAutoClose();
 
     const fetchStatus = async () => {
       if (!qrInput.value) {
@@ -160,8 +296,12 @@ const StatusView = {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || data.message || 'Błąd statusu');
         status.value = data;
+        showConfirmation.value = true;
+        start(12, () => { showConfirmation.value = false; });
       } catch (err) {
         status.value = null;
+        showConfirmation.value = false;
+        stop();
         error.value = err.message;
       } finally {
         loading.value = false;
@@ -172,7 +312,21 @@ const StatusView = {
       if (qrInput.value) fetchStatus();
     });
 
-    return { deviceId, deviceToken, qrInput, status, loading, error, fetchStatus };
+    onBeforeUnmount(() => stop());
+
+    return {
+      deviceId,
+      deviceToken,
+      qrInput,
+      status,
+      loading,
+      error,
+      fetchStatus,
+      showConfirmation,
+      countdown,
+      extend,
+      finish,
+    };
   },
   template: `
     <div class="container">
@@ -189,7 +343,14 @@ const StatusView = {
         <div class="card" v-if="status">
           <h3>Podsumowanie</h3>
           <StatusDetails :status="status" />
-          <p class="helper" style="margin-top:12px">Dostępne akcje: {{ status.actions.join(', ') }}</p>
+          <ConfirmationCard
+            v-if="showConfirmation"
+            :status="status"
+            :countdown="countdown"
+            :message="status.last_action"
+            @close="finish"
+            @extend="extend"
+          />
         </div>
       </div>
     </div>
@@ -198,7 +359,7 @@ const StatusView = {
 
 const ScanView = {
   name: 'ScanView',
-  components: { StatusDetails },
+  components: { StatusDetails, ConfirmationCard },
   setup() {
     const { deviceToken, deviceId } = useDeviceSettings();
     const router = useRouter();
@@ -213,30 +374,13 @@ const ScanView = {
     const statusError = ref('');
     const statusLoading = ref(false);
     const message = ref('');
-    const countdown = ref(null);
+    const showConfirmation = ref(false);
+    const { countdown, start, stop, extend, finish } = createAutoClose();
     const scannerError = ref('');
     let html5QrcodeInstance = null;
-    let returnTimer = null;
-    let countdownTimer = null;
-
-    const stopCountdown = () => {
-      if (returnTimer) clearTimeout(returnTimer);
-      if (countdownTimer) clearInterval(countdownTimer);
-      countdown.value = null;
-    };
 
     const startReturn = () => {
-      stopCountdown();
-      let seconds = 3;
-      countdown.value = seconds;
-      countdownTimer = setInterval(() => {
-        seconds -= 1;
-        countdown.value = seconds;
-        if (seconds <= 0) {
-          clearInterval(countdownTimer);
-        }
-      }, 1000);
-      returnTimer = setTimeout(() => router.push('/'), seconds * 1000);
+      start(3, () => router.push('/'));
     };
 
     const stopScanner = () => {
@@ -266,10 +410,11 @@ const ScanView = {
       }
     };
 
-    const fetchStatus = async (qr, { autoRegister = false } = {}) => {
+    const fetchStatus = async (qr, { autoRegister = false, preserveMessage = false } = {}) => {
       statusLoading.value = true;
       statusError.value = '';
-      message.value = '';
+      if (!preserveMessage) message.value = '';
+      stop();
       try {
         const params = new URLSearchParams({ qr });
         if (deviceId.value) params.set('device', deviceId.value);
@@ -279,6 +424,7 @@ const ScanView = {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || data.message || 'Błąd statusu');
         status.value = data;
+        showConfirmation.value = true;
         const canAutoCheckIn = (
           autoRegister
           && Array.isArray(data.actions)
@@ -290,6 +436,7 @@ const ScanView = {
         }
       } catch (err) {
         status.value = null;
+        showConfirmation.value = false;
         statusError.value = err.message;
       } finally {
         statusLoading.value = false;
@@ -315,6 +462,7 @@ const ScanView = {
           throw new Error(data.detail || data.message || 'Błąd zapisu');
         }
         message.value = data.message || 'Zapisano';
+        await fetchStatus(scannedQr.value, { autoRegister: false, preserveMessage: true });
         startReturn();
       } catch (err) {
         statusError.value = err.message;
@@ -330,7 +478,8 @@ const ScanView = {
       statusError.value = '';
       message.value = '';
       stopScanner();
-      stopCountdown();
+      stop();
+      showConfirmation.value = false;
       const autoRegister = isRegisterMode.value;
       fetchStatus(decodedText, { autoRegister });
     };
@@ -342,7 +491,8 @@ const ScanView = {
       statusError.value = '';
       message.value = '';
       stopScanner();
-      stopCountdown();
+      stop();
+      showConfirmation.value = false;
       const autoRegister = isRegisterMode.value;
       fetchStatus(manualQr.value, { autoRegister });
     };
@@ -350,7 +500,7 @@ const ScanView = {
     onMounted(() => startScanner());
     onBeforeUnmount(() => {
       stopScanner();
-      stopCountdown();
+      stop();
     });
 
     return {
@@ -362,6 +512,7 @@ const ScanView = {
       statusLoading,
       message,
       countdown,
+      showConfirmation,
       scannerError,
       deviceId,
       deviceToken,
@@ -370,6 +521,8 @@ const ScanView = {
       startScanner,
       submitManual,
       sendEvent,
+      extend,
+      finish,
     };
   },
   template: `
@@ -399,7 +552,7 @@ const ScanView = {
             <p v-if="statusError" class="alert">{{ statusError }}</p>
             <p v-if="statusLoading">Ładowanie statusu…</p>
             <div v-if="status">
-              <StatusDetails :status="status" v-if="mode === 'status' || status.actions.length > 1" />
+              <StatusDetails :status="status" />
               <p class="helper" v-if="isRegisterMode && status.actions.length === 1">Wykonano domyślną akcję CHECK_IN.</p>
               <div
                 class="action-grid"
@@ -417,11 +570,14 @@ const ScanView = {
                   {{ actionMeta[action]?.label || action }}
                 </button>
               </div>
-              <div v-if="message" class="card" style="margin-top:12px; background:#f8fafc;">
-                <h4>Potwierdzenie</h4>
-                <p style="margin:0">{{ message }}</p>
-                <p class="helper" v-if="countdown !== null" style="margin-top:6px">Powrót na ekran główny za {{ countdown }}s…</p>
-              </div>
+              <ConfirmationCard
+                v-if="showConfirmation"
+                :status="status"
+                :countdown="countdown"
+                :message="message || status.last_action"
+                @close="finish"
+                @extend="extend"
+              />
             </div>
           </div>
         </div>
