@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -134,3 +135,6 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
 }
+
+TABLET_DEVICE_ID = os.getenv("TABLET_DEVICE_ID") or os.getenv("VITE_DEVICE_ID") or "tablet-01"
+TABLET_DEVICE_TOKEN = os.getenv("TABLET_DEVICE_TOKEN") or os.getenv("VITE_DEVICE_TOKEN") or ""
