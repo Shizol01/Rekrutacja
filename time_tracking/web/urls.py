@@ -1,5 +1,6 @@
 from django.urls import path
-from time_tracking.web.tablet_views import tablet_spa
+from django.conf import settings
+from time_tracking.web.tablet_views import tablet_debug, tablet_spa
 from time_tracking.web.admin_views import (
     live_panel_view,
     employee_report_view,
@@ -18,3 +19,8 @@ urlpatterns = [
     path("admin-panel/reports/", employee_report_view, name="employee-report"),
     path("admin-panel/reports/custom/", custom_report_view, name="custom-report"),
 ]
+
+if settings.DEBUG:
+    urlpatterns.append(
+        path("tablet/debug/", tablet_debug, name="tablet-debug"),
+    )
