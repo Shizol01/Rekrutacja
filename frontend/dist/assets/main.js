@@ -4,7 +4,6 @@ import {
   computed,
   onMounted,
   onBeforeUnmount,
-  watch,
 } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
 import { createRouter, createWebHistory, useRouter, useRoute } from 'https://unpkg.com/vue-router@4/dist/vue-router.esm-browser.js';
 
@@ -34,12 +33,17 @@ const minutesSince = (iso) => {
   return Math.max(0, Math.floor(diffMs / 60000));
 };
 
-const useDeviceSettings = () => {
-  const deviceToken = ref(localStorage.getItem('tablet_device_token') || '');
-  const deviceId = ref(localStorage.getItem('tablet_device_id') || 'tablet-01');
+const getConfigValue = (key, fallback) => {
+  const globalConfig = window?.APP_CONFIG || window?.TABLET_CONFIG;
+  if (globalConfig && globalConfig[key] !== undefined && globalConfig[key] !== null) {
+    return globalConfig[key];
+  }
+  return fallback;
+};
 
-  watch(deviceToken, (v) => localStorage.setItem('tablet_device_token', v || ''));
-  watch(deviceId, (v) => localStorage.setItem('tablet_device_id', v || ''));
+const useDeviceSettings = () => {
+  const deviceToken = ref(getConfigValue('deviceToken', ''));
+  const deviceId = ref(getConfigValue('deviceId', 'tablet-01'));
 
   return { deviceToken, deviceId };
 };
@@ -100,29 +104,27 @@ const StatusDetails = {
 
 const HomeView = {
   name: 'HomeView',
-  setup() {
-    const { deviceToken, deviceId } = useDeviceSettings();
-    return { deviceToken, deviceId };
-  },
   template: `
-    <div class="container">
-      <div class="grid two">
-        <div class="card">
-          <h1>Rejestracja czasu pracy</h1>
-          <p class="muted">Skanuj kody QR pracowników, wysyłaj zdarzenia i podglądaj status w jednym miejscu.</p>
-          <div class="btn-row">
-            <router-link class="btn primary" to="/scan">Skanuj kod QR</router-link>
-            <router-link class="btn" to="/status">Sprawdź status</router-link>
+    <div class="container fullscreen">
+      <div class="hero">
+        <h1>Rejestracja czasu pracy</h1>
+        <p class="muted">Wybierz tryb tabletu. Dostępne są jedynie najważniejsze kafle.</p>
+      </div>
+      <div class="tile-grid">
+        <router-link class="tile primary" to="/scan">
+          <div class="tile-icon">▶</div>
+          <div>
+            <h2>Rejestracja</h2>
+            <p class="muted">Skanowanie kodu QR i wysyłanie zdarzeń</p>
           </div>
-        </div>
-        <div class="card">
-          <h3>Ustawienia urządzenia</h3>
-          <p class="helper">Nagłówek <code>X-Device-Token</code> jest wymagany przez API. Identyfikator urządzenia trafia do logu zdarzeń.</p>
-          <label class="label" for="token">Device token</label>
-          <input id="token" v-model="deviceToken" placeholder="Wklej token urządzenia" autocomplete="off" />
-          <label class="label" for="device" style="margin-top:12px">Id urządzenia</label>
-          <input id="device" v-model="deviceId" placeholder="np. tablet-01" />
-        </div>
+        </router-link>
+        <router-link class="tile" to="/status">
+          <div class="tile-icon">📊</div>
+          <div>
+            <h2>Status</h2>
+            <p class="muted">Podgląd bieżącego stanu pracownika</p>
+          </div>
+        </router-link>
       </div>
     </div>
   `,
@@ -171,6 +173,7 @@ const StatusView = {
   },
   template: `
     <div class="container">
+      <router-link class="back-link" to="/">← Powrót do startu</router-link>
       <div class="grid two">
         <div class="card">
           <h2>Status pracownika</h2>
@@ -343,6 +346,7 @@ const ScanView = {
   },
   template: `
     <div class="container">
+      <router-link class="back-link" to="/">← Powrót do startu</router-link>
       <div class="grid two">
         <div class="card">
           <h2>Skanuj kod QR</h2>
@@ -401,17 +405,9 @@ const router = createRouter({
 
 const AppShell = {
   template: `
-    <div>
-      <header>
-        <div class="logo">Tablet SPA</div>
-        <nav>
-          <router-link to="/">Start</router-link>
-          <router-link to="/scan">Skanuj</router-link>
-          <router-link to="/status">Status</router-link>
-        </nav>
-      </header>
+    <main class="app-shell">
       <router-view></router-view>
-    </div>
+    </main>
   `,
 };
 
