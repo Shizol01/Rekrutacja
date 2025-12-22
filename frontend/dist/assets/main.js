@@ -242,26 +242,24 @@ const ConfirmationCard = {
 const HomeView = {
   name: 'HomeView',
   template: `
-    <div class="container fullscreen">
-      <div class="hero">
-        <h1>Rejestracja czasu pracy</h1>
-        <p class="muted">Wybierz tryb tabletu. Dostępne są jedynie najważniejsze kafle.</p>
-      </div>
-      <div class="tile-grid">
-        <router-link class="tile primary" to="/scan">
-          <div class="tile-icon">▶</div>
-          <div>
-            <h2>Rejestracja</h2>
-            <p class="muted">Skanowanie kodu QR i wysyłanie zdarzeń</p>
-          </div>
-        </router-link>
-        <router-link class="tile" to="/status">
-          <div class="tile-icon">📊</div>
-          <div>
-            <h2>Status</h2>
-            <p class="muted">Podgląd bieżącego stanu pracownika</p>
-          </div>
-        </router-link>
+    <div class="fullscreen-wrapper">
+      <div class="home-content">
+        <div class="tile-grid home-tiles">
+          <router-link class="tile primary" to="/scan">
+            <div class="tile-icon">▶</div>
+            <div>
+              <h2>Rejestracja</h2>
+              <p class="muted">Skanowanie kodu QR i wysyłanie zdarzeń</p>
+            </div>
+          </router-link>
+          <router-link class="tile" to="/status">
+            <div class="tile-icon">📊</div>
+            <div>
+              <h2>Status</h2>
+              <p class="muted">Podgląd bieżącego stanu pracownika</p>
+            </div>
+          </router-link>
+        </div>
       </div>
     </div>
   `,
@@ -598,7 +596,7 @@ const router = createRouter({
 
 const AppShell = {
   template: `
-    <main class="app-shell">
+    <main class="app-shell full-viewport">
       <router-view></router-view>
     </main>
   `,
