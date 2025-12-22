@@ -47,8 +47,8 @@ const formatClock = (iso) => {
   return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const deviceId = 'tablet-01';
-const deviceToken = (import.meta?.env?.VITE_DEVICE_TOKEN || '').trim();
+const deviceId = (window.APP_CONFIG?.deviceId || 'tablet-01');
+const deviceToken = (window.APP_CONFIG?.deviceToken || import.meta?.env?.VITE_DEVICE_TOKEN || '').trim();
 
 const buildHeaders = (token, extra = {}) => {
   const headers = { ...extra };
@@ -255,21 +255,39 @@ const StatusView = {
   name: 'StatusView',
   components: { StatusDetails, ConfirmationCard },
   setup() {
+    const router = useRouter();
     const route = useRoute();
     const qrInput = ref(route.query.qr || '');
     const status = ref(null);
     const loading = ref(false);
+    const actionLoading = ref(false);
     const error = ref('');
+    const message = ref('');
     const showConfirmation = ref(false);
     const { countdown, start, stop, extend, finish } = createAutoClose();
 
-    const fetchStatus = async () => {
+    const startReturn = () => {
+      start(4, () => router.push('/'));
+    };
+
+    const handleClose = () => {
+      if (countdown.value !== null) {
+        finish();
+      } else {
+        stop();
+        showConfirmation.value = false;
+      }
+    };
+
+    const fetchStatus = async ({ preserveMessage = false } = {}) => {
       if (!qrInput.value) {
         error.value = 'Podaj token QR';
         return;
       }
       loading.value = true;
       error.value = '';
+      if (!preserveMessage) message.value = '';
+      stop();
       try {
         const params = new URLSearchParams({ qr: qrInput.value });
         if (deviceId) params.set('device', deviceId);
@@ -280,7 +298,6 @@ const StatusView = {
         if (!resp.ok) throw new Error(data.detail || data.message || 'Błąd statusu');
         status.value = data;
         showConfirmation.value = true;
-        start(12, () => { showConfirmation.value = false; });
       } catch (err) {
         status.value = null;
         showConfirmation.value = false;
@@ -297,16 +314,56 @@ const StatusView = {
 
     onBeforeUnmount(() => stop());
 
+    const sendEvent = async (eventType) => {
+      if (!qrInput.value) {
+        error.value = 'Podaj token QR przed wysłaniem akcji';
+        return;
+      }
+      actionLoading.value = true;
+      error.value = '';
+      try {
+        const resp = await fetch(`${API_BASE}/events/`, {
+          method: 'POST',
+          headers: buildHeaders(deviceToken, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            qr: qrInput.value,
+            event_type: eventType,
+            device_id: deviceId || undefined,
+          }),
+        });
+        const data = await resp.json();
+        if (!resp.ok && resp.status !== 200 && resp.status !== 201) {
+          throw new Error(data.detail || data.message || 'Błąd zapisu');
+        }
+        message.value = data.message || 'Zapisano';
+        await fetchStatus({ preserveMessage: true });
+        startReturn();
+      } catch (err) {
+        error.value = err.message;
+      } finally {
+        actionLoading.value = false;
+      }
+    };
+
+    const availableActions = computed(() => (status.value?.actions || []));
+    const hasActions = computed(() => availableActions.value.length > 0);
+
     return {
       qrInput,
       status,
       loading,
+      actionLoading,
       error,
       fetchStatus,
       showConfirmation,
       countdown,
+      message,
       extend,
       finish,
+      handleClose,
+      sendEvent,
+      availableActions,
+      hasActions,
     };
   },
   template: `
@@ -324,12 +381,28 @@ const StatusView = {
         <div class="card" v-if="status">
           <h3>Podsumowanie</h3>
           <StatusDetails :status="status" />
+          <div
+            class="action-grid"
+            style="margin-top:16px"
+            v-if="hasActions"
+          >
+            <button
+              v-for="action in availableActions"
+              :key="action"
+              class="btn"
+              :class="actionMeta[action]?.tone || 'primary'"
+              :disabled="loading || actionLoading"
+              @click="sendEvent(action)"
+            >
+              {{ actionMeta[action]?.label || action }}
+            </button>
+          </div>
           <ConfirmationCard
             v-if="showConfirmation"
             :status="status"
             :countdown="countdown"
-            :message="status.last_action"
-            @close="finish"
+            :message="message || status.last_action"
+            @close="handleClose"
             @extend="extend"
           />
         </div>
@@ -356,6 +429,7 @@ const ScanView = {
     const showConfirmation = ref(false);
     const { countdown, start, stop, extend, finish } = createAutoClose();
     const scannerError = ref('');
+    const autoCheckInTriggered = ref(false);
     let html5QrcodeInstance = null;
 
     const startReturn = () => {
@@ -389,10 +463,14 @@ const ScanView = {
       }
     };
 
-    const fetchStatus = async (qr, { autoRegister = false, preserveMessage = false } = {}) => {
+    const fetchStatus = async (
+      qr,
+      { autoRegister = false, preserveMessage = false, preserveAutoFlag = false } = {},
+    ) => {
       statusLoading.value = true;
       statusError.value = '';
       if (!preserveMessage) message.value = '';
+      if (!preserveAutoFlag) autoCheckInTriggered.value = false;
       stop();
       try {
         const params = new URLSearchParams({ qr });
@@ -411,7 +489,8 @@ const ScanView = {
           && data.actions[0] === 'CHECK_IN'
         );
         if (canAutoCheckIn) {
-          await sendEvent('CHECK_IN');
+          autoCheckInTriggered.value = true;
+          await sendEvent('CHECK_IN', { preserveAutoFlag: true });
         }
       } catch (err) {
         status.value = null;
@@ -422,7 +501,7 @@ const ScanView = {
       }
     };
 
-    const sendEvent = async (eventType) => {
+    const sendEvent = async (eventType, { preserveAutoFlag = false } = {}) => {
       if (!scannedQr.value) return;
       statusLoading.value = true;
       message.value = '';
@@ -441,10 +520,15 @@ const ScanView = {
           throw new Error(data.detail || data.message || 'Błąd zapisu');
         }
         message.value = data.message || 'Zapisano';
-        await fetchStatus(scannedQr.value, { autoRegister: false, preserveMessage: true });
+        await fetchStatus(scannedQr.value, {
+          autoRegister: false,
+          preserveMessage: true,
+          preserveAutoFlag,
+        });
         startReturn();
       } catch (err) {
         statusError.value = err.message;
+        autoCheckInTriggered.value = false;
       } finally {
         statusLoading.value = false;
       }
@@ -455,6 +539,7 @@ const ScanView = {
       status.value = null;
       statusError.value = '';
       message.value = '';
+      autoCheckInTriggered.value = false;
       stopScanner();
       stop();
       showConfirmation.value = false;
@@ -468,6 +553,14 @@ const ScanView = {
       stop();
     });
 
+    const shouldShowActionButtons = computed(() => {
+      if (!status.value || !Array.isArray(status.value.actions)) return false;
+      if (autoCheckInTriggered.value) return false;
+      if (mode.value === 'status') return status.value.actions.length > 0;
+      if (status.value.actions.length === 1 && status.value.actions[0] === 'CHECK_IN') return false;
+      return status.value.actions.length > 0;
+    });
+
     return {
       actionMeta,
       scannedQr,
@@ -478,6 +571,8 @@ const ScanView = {
       countdown,
       showConfirmation,
       scannerError,
+      autoCheckInTriggered,
+      shouldShowActionButtons,
       mode,
       isRegisterMode,
       startScanner,
@@ -509,11 +604,11 @@ const ScanView = {
             <p v-if="statusLoading">Ładowanie statusu…</p>
             <div v-if="status">
               <StatusDetails :status="status" />
-              <p class="helper" v-if="isRegisterMode && status.actions.length === 1">Wykonano domyślną akcję CHECK_IN.</p>
+              <p class="helper" v-if="autoCheckInTriggered">Wykonano domyślną akcję CHECK_IN.</p>
               <div
                 class="action-grid"
                 style="margin-top:16px"
-                v-if="mode === 'status' || status.actions.length > 1"
+                v-if="shouldShowActionButtons"
               >
                 <button
                   v-for="action in status.actions"
