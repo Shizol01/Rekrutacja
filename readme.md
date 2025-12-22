@@ -158,8 +158,9 @@ POST `/api/tablet/events/`
 GET `/api/tablet/status/?qr=TOKEN&device=tablet-01`
 
 Uwierzytelnienie tabletu odbywa się przez nagłówek `X-Device-Token`
-(pole `api_token` modelu `Device`). Opcjonalnie można przekazać `device_id`,
-które zostanie zweryfikowane z tokenem.
+(pole `api_token` modelu `Device`). Opcjonalny identyfikator urządzenia
+(`device_id` z modelu `Device`) można przekazać w nagłówku `X-Device-Id`
+lub jako parametr zapytania – zostanie zweryfikowany względem tokenu.
 
 ---
 
@@ -245,3 +246,9 @@ cd my-vue-app
 npm install
 npm run build
 ```
+
+Tabletowa aplikacja SPA dostępna jest pod `/api/tablet/` (Django zwraca tam
+zbudowany plik `dist/index.html`). Wywołania API z SPA wymagają nagłówka
+`X-Device-Token` oraz opcjonalnego `X-Device-Id`, który powinien odpowiadać
+`device_id` urządzenia w bazie. Domyślna komenda budująca aplikację to
+`cd my-vue-app && npm install && npm run build`.
