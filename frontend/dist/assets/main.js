@@ -47,22 +47,8 @@ const formatClock = (iso) => {
   return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const getConfigValue = (key, fallback) => {
-  const globalConfig = window?.APP_CONFIG || window?.TABLET_CONFIG || window?.ENV || window?.env;
-  if (globalConfig && globalConfig[key] !== undefined && globalConfig[key] !== null) {
-    return globalConfig[key];
-  }
-  const metaValue = document.querySelector(`meta[name="${key}"]`)?.content;
-  if (metaValue) return metaValue;
-  return fallback;
-};
-
-const useDeviceSettings = () => {
-  const deviceToken = ref(getConfigValue('deviceToken', ''));
-  const deviceId = ref(getConfigValue('deviceId', 'tablet-01'));
-
-  return { deviceToken, deviceId };
-};
+const deviceId = 'tablet-01';
+const deviceToken = (import.meta?.env?.VITE_DEVICE_TOKEN || '').trim();
 
 const buildHeaders = (token, extra = {}) => {
   const headers = { ...extra };
@@ -269,7 +255,6 @@ const StatusView = {
   name: 'StatusView',
   components: { StatusDetails, ConfirmationCard },
   setup() {
-    const { deviceToken, deviceId } = useDeviceSettings();
     const route = useRoute();
     const qrInput = ref(route.query.qr || '');
     const status = ref(null);
@@ -287,9 +272,9 @@ const StatusView = {
       error.value = '';
       try {
         const params = new URLSearchParams({ qr: qrInput.value });
-        if (deviceId.value) params.set('device', deviceId.value);
+        if (deviceId) params.set('device', deviceId);
         const resp = await fetch(`${API_BASE}/status/?${params.toString()}`, {
-          headers: buildHeaders(deviceToken.value),
+          headers: buildHeaders(deviceToken),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || data.message || 'Błąd statusu');
@@ -313,8 +298,6 @@ const StatusView = {
     onBeforeUnmount(() => stop());
 
     return {
-      deviceId,
-      deviceToken,
       qrInput,
       status,
       loading,
@@ -359,7 +342,6 @@ const ScanView = {
   name: 'ScanView',
   components: { StatusDetails, ConfirmationCard },
   setup() {
-    const { deviceToken, deviceId } = useDeviceSettings();
     const router = useRouter();
     const route = useRoute();
     const mode = computed(() => (route.query.mode === 'status' ? 'status' : 'register'));
@@ -367,7 +349,6 @@ const ScanView = {
 
     const scanning = ref(true);
     const scannedQr = ref('');
-    const manualQr = ref('');
     const status = ref(null);
     const statusError = ref('');
     const statusLoading = ref(false);
@@ -415,9 +396,9 @@ const ScanView = {
       stop();
       try {
         const params = new URLSearchParams({ qr });
-        if (deviceId.value) params.set('device', deviceId.value);
+        if (deviceId) params.set('device', deviceId);
         const resp = await fetch(`${API_BASE}/status/?${params.toString()}`, {
-          headers: buildHeaders(deviceToken.value),
+          headers: buildHeaders(deviceToken),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || data.message || 'Błąd statusu');
@@ -448,11 +429,11 @@ const ScanView = {
       try {
         const resp = await fetch(`${API_BASE}/events/`, {
           method: 'POST',
-          headers: buildHeaders(deviceToken.value, { 'Content-Type': 'application/json' }),
+          headers: buildHeaders(deviceToken, { 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             qr: scannedQr.value,
             event_type: eventType,
-            device_id: deviceId.value || undefined,
+            device_id: deviceId || undefined,
           }),
         });
         const data = await resp.json();
@@ -471,7 +452,6 @@ const ScanView = {
 
     const onScan = (decodedText) => {
       scannedQr.value = decodedText;
-      manualQr.value = decodedText;
       status.value = null;
       statusError.value = '';
       message.value = '';
@@ -480,19 +460,6 @@ const ScanView = {
       showConfirmation.value = false;
       const autoRegister = isRegisterMode.value;
       fetchStatus(decodedText, { autoRegister });
-    };
-
-    const submitManual = () => {
-      if (!manualQr.value) return;
-      scannedQr.value = manualQr.value;
-      status.value = null;
-      statusError.value = '';
-      message.value = '';
-      stopScanner();
-      stop();
-      showConfirmation.value = false;
-      const autoRegister = isRegisterMode.value;
-      fetchStatus(manualQr.value, { autoRegister });
     };
 
     onMounted(() => startScanner());
@@ -504,7 +471,6 @@ const ScanView = {
     return {
       actionMeta,
       scannedQr,
-      manualQr,
       status,
       statusError,
       statusLoading,
@@ -512,12 +478,9 @@ const ScanView = {
       countdown,
       showConfirmation,
       scannerError,
-      deviceId,
-      deviceToken,
       mode,
       isRegisterMode,
       startScanner,
-      submitManual,
       sendEvent,
       extend,
       finish,
@@ -535,11 +498,6 @@ const ScanView = {
           <div id="reader" class="scanner">
             <div class="hint" v-if="scannerError">{{ scannerError }}</div>
             <div class="hint" v-else>Oczekiwanie na kamerę…</div>
-          </div>
-          <div style="margin-top:12px">
-            <label class="label">Token ręcznie</label>
-            <input v-model="manualQr" placeholder="Wpisz token, jeśli kamera jest niedostępna" />
-            <button class="primary" style="margin-top:8px" @click="submitManual">Użyj tokenu</button>
           </div>
         </div>
         <div class="card">
