@@ -157,6 +157,10 @@ POST `/api/tablet/events/`
 
 GET `/api/tablet/status/?qr=TOKEN&device=tablet-01`
 
+Uwierzytelnienie tabletu odbywa się przez nagłówek `X-Device-Token`
+(pole `api_token` modelu `Device`). Opcjonalnie można przekazać `device_id`,
+które zostanie zweryfikowane z tokenem.
+
 ---
 
 ### Grafik pracy
@@ -229,3 +233,15 @@ python manage.py runserver
 * Tablet: `http://localhost:8000/api/tablet/`
 * Panel admina (live): `http://localhost:8000/api/admin-panel/live/`
 * Django Admin: `http://localhost:8000/admin/`
+
+### Frontend (tablet SPA)
+
+Kod Vue 3 znajduje się w katalogu `my-vue-app/src` i budowany jest przy pomocy
+Vite. Zbudowane pliki trafiają do `my-vue-app/dist`, które Django serwuje jako
+statyczne (`STATICFILES_DIRS`). Aby przebudować:
+
+```bash
+cd my-vue-app
+npm install
+npm run build
+```

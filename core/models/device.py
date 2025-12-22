@@ -27,6 +27,14 @@ class Device(models.Model):
         verbose_name = "Device"
         verbose_name_plural = "Devices"
 
+    @property
+    def is_authenticated(self):
+        """
+        Allows Device instances to be used as DRF `request.user` when authenticating
+        tablet requests via `DeviceTokenAuthentication`.
+        """
+        return True
+
     def save(self, *args, **kwargs):
         if not self.api_token:
             self.api_token = get_random_string(40)
@@ -34,11 +42,3 @@ class Device(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.device_id})"
-
-    @property
-    def is_authenticated(self):
-        """
-        Allows using Device instances as the authenticated principal in DRF.
-        """
-
-        return True
