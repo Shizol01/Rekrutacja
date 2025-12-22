@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from core.models import Employee
 from time_tracking.api.authentication import DeviceTokenAuthentication
 from time_tracking.api.serializers import WorkScheduleSerializer
-from time_tracking.models import WorkSchedule
+from time_tracking.models import TimeEvent, WorkSchedule
 from time_tracking.services.event_service import register_event
 from time_tracking.services.report_csv import build_attendance_csv
 from time_tracking.services.report_service import build_attendance_report
@@ -208,15 +209,45 @@ class TabletStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qr = request.query_params.get("qr")
-
-        if not qr:
-            return Response({"detail": "Missing qr"}, status=status.HTTP_400_BAD_REQUEST)
-
         device = request.user
-        device_id = request.query_params.get("device")
-        if device_id and device_id != device.device_id:
+        requested_device_id = (
+            request.query_params.get("device")
+            or request.query_params.get("device_id")
+            or request.META.get("HTTP_X_DEVICE_ID")
+        )
+        if requested_device_id and requested_device_id != device.device_id:
             return Response({"detail": "Invalid device"}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        last_device_event = (
+            TimeEvent.objects
+            .filter(device=device)
+            .order_by("-timestamp", "-id")
+            .first()
+        )
+
+        uptime_seconds = None
+        if device.created_at:
+            uptime_seconds = int((now - device.created_at).total_seconds())
+
+        response_data = {
+            "device_id": device.device_id,
+            "heartbeat_at": (
+                timezone.localtime(last_device_event.timestamp).isoformat()
+                if last_device_event else now.isoformat()
+            ),
+            "uptime_seconds": uptime_seconds,
+            "events_total": TimeEvent.objects.filter(device=device).count(),
+            "meta": {
+                "name": device.name,
+                "is_active": device.is_active,
+            },
+        }
+
+        qr = request.query_params.get("qr")
+        if not qr:
+            response_data["actions"] = []
+            return Response(response_data)
 
         try:
             employee = Employee.objects.get(qr_token=qr)
@@ -233,7 +264,7 @@ class TabletStatusView(APIView):
         else:  # ON_BREAK
             actions = ["BREAK_END", "CHECK_OUT"]
 
-        return Response({
+        response_data.update({
             "employee": {
                 "id": employee.id,
                 "name": str(employee),
@@ -251,3 +282,5 @@ class TabletStatusView(APIView):
             "last_was_toilet": st.last_was_toilet,
             "actions": actions,
         })
+
+        return Response(response_data)
