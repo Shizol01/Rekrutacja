@@ -125,8 +125,23 @@ const StatusDetails = {
     const email = computed(() => props.status.employee.email || props.status.employee.mail || '—');
     const available = computed(() => (props.status.actions || []).map((a) => actionBadges[a] || a));
     const state = computed(() => stateMeta[props.status.state] || { label: props.status.state, tone: 'info' });
+    const isBreakActive = computed(
+      () => props.status.minutes_on_break !== null && props.status.minutes_on_break !== undefined,
+    );
+    const lastEventLabel = computed(
+      () => actionBadges[props.status.last_event_type] || props.status.last_action || '—',
+    );
 
-    return { workTime, breakTime, eventClock, email, available, state };
+    return {
+      workTime,
+      breakTime,
+      eventClock,
+      email,
+      available,
+      state,
+      isBreakActive,
+      lastEventLabel,
+    };
   },
   template: `
     <div class="status-details">
@@ -147,7 +162,8 @@ const StatusDetails = {
         <div class="quick-card">
           <p class="helper">Przerwy</p>
           <div class="stat-value">{{ breakTime }}</div>
-          <p class="helper" v-if="status.minutes_on_break !== null">W trakcie: {{ status.minutes_on_break }} min</p>
+          <p class="helper" v-if="isBreakActive">Aktywna: {{ status.minutes_on_break }} min</p>
+          <p class="helper" v-else>Brak aktywnej przerwy</p>
         </div>
         <div class="quick-card">
           <p class="helper">Przyjście</p>
@@ -156,6 +172,9 @@ const StatusDetails = {
         <div class="quick-card">
           <p class="helper">Ostatnie zdarzenie</p>
           <div class="stat-value">{{ eventClock }}</div>
+          <div class="pill-row" v-if="lastEventLabel && lastEventLabel !== '—'">
+            <span class="pill info">{{ lastEventLabel }}</span>
+          </div>
           <p class="helper">{{ status.last_action || '—' }}</p>
         </div>
       </div>
@@ -183,6 +202,9 @@ const ConfirmationCard = {
   emits: ['close', 'extend'],
   setup(props) {
     const shortcutItems = computed(() => [
+      ...(props.status.minutes_on_break !== null && props.status.minutes_on_break !== undefined
+        ? [{ label: 'Aktywna przerwa', value: `${props.status.minutes_on_break} min` }]
+        : []),
       { label: 'Czas pracy', value: formatMinutes(props.status.work_minutes) },
       { label: 'Przerwy', value: formatMinutes(props.status.break_minutes) },
       { label: 'Przyjście', value: props.status.started_at || '—' },
@@ -194,16 +216,25 @@ const ConfirmationCard = {
         ? `${props.status.minutes_on_break} min`
         : null
     ));
+    const actionLabel = computed(
+      () => actionBadges[props.status.last_event_type] || props.status.last_action || 'Zdarzenie',
+    );
+    const actionTone = computed(() => actionMeta[props.status.last_event_type]?.tone || 'info');
 
-    return { shortcutItems, title, breakInfo, formatClock };
+    return {
+      shortcutItems, title, breakInfo, formatClock, actionLabel, actionTone,
+    };
   },
   template: `
     <div class="card confirmation-card">
       <div class="confirmation-head">
         <div>
           <p class="eyebrow">Potwierdzenie</p>
-          <h4 style="margin: 4px 0">{{ title }}</h4>
-          <p class="muted">O {{ formatClock(status.last_event_timestamp) }}</p>
+          <div class="confirmation-meta">
+            <span class="badge" :class="actionTone">{{ actionLabel }}</span>
+            <span class="muted">o {{ formatClock(status.last_event_timestamp) }}</span>
+          </div>
+          <h4 style="margin: 6px 0">{{ title }}</h4>
         </div>
         <div v-if="breakInfo" class="pill warning">Przerwa trwa: {{ breakInfo }}</div>
       </div>

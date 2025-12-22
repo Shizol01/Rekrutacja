@@ -144,6 +144,7 @@ button.danger,
 .badge.warning { background: #fef9c3; color: #854d0e; }
 .badge.danger { background: #fee2e2; color: #991b1b; }
 .badge.info { background: #e0e7ff; color: #1e1b4b; }
+.badge.primary { background: #dbeafe; color: #1d4ed8; }
 
 .muted {
   color: #64748b;
@@ -329,6 +330,10 @@ select {
   background: #fef3c7;
   color: #92400e;
 }
+.pill.info {
+  background: #e0e7ff;
+  color: #1e1b4b;
+}
 
 .confirmation-card {
   margin-top: 16px;
@@ -341,6 +346,13 @@ select {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+.confirmation-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 4px 0;
 }
 
 .shortcut-grid {
